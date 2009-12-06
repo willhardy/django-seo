@@ -84,9 +84,9 @@ class MetaData(models.Model):
     @property
     def context(self):
         context = {}
-        context['meta_title'] = mark_safe(meta_data.title)
-        context['meta_keywords'] = mark_safe(striptags(meta_data.keywords))
-        context['meta_description'] = mark_safe(striptags(meta_data.description))
+        context['meta_title'] = mark_safe(self.title)
+        context['meta_keywords'] = mark_safe(striptags(self.keywords))
+        context['meta_description'] = mark_safe(striptags(self.description))
         return context
 
     def update_related_object(self):
