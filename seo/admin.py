@@ -8,5 +8,14 @@ class MetaDataAdmin(admin.ModelAdmin):
     list_editable = ('title', )#'keywords', 'description')
     list_filter = ('content_type',)
     search_fields = ('title', 'keywords', 'description')
+    fieldsets = (
+        (None, {
+            'fields': ('path', 'title', 'keywords', 'description')
+        }),
+        ('Advanced', {
+            'classes' : ('collapse',),
+            'fields': ('extra', )
+        }),
+        )
 
 admin.site.register(models.MetaData, MetaDataAdmin)

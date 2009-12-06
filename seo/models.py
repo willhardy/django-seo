@@ -42,11 +42,12 @@ class MetaData(models.Model):
     title       = models.CharField(max_length=511, default="", blank=True)
     keywords    = models.TextField(default="", blank=True)
     description = models.TextField(default="", blank=True)
-    extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional html to be placed verbatim in the &lt;head&gt;")
+    extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
 
     # If the generic foreign key is set, populate the above fields from there
-    content_type   = models.ForeignKey(ContentType, null=True, limit_choices_to={'id__in': [ct.id for ct in get_seo_content_types()]})
-    object_id      = models.PositiveIntegerField(null=True)
+    content_type   = models.ForeignKey(ContentType, null=True, blank=True, editable=False,
+                                        limit_choices_to={'id__in': [ct.id for ct in get_seo_content_types()]})
+    object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 
     class Meta:

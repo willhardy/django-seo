@@ -10,5 +10,5 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         for model in get_seo_models():
             for instance in model._default_manager.all():
-                #update_callback(sender=model, instance=instance, created=False)
-                instance.save()
+                update_callback(sender=model, instance=instance, created=False)
+                #instance.save()
