@@ -22,6 +22,15 @@ from django.contrib.contenttypes import generic
 from seo.utils import get_seo_models, get_seo_content_types
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
+from django.conf import settings
+
+DEFAULT_TITLE = getattr(settings, "SEO_DEFAULT_TITLE", None)
+DEFAULT_KEYWORDS = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
+DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
+if not DEFAULT_TITLE:
+    from django.contrib.sites.models import Site
+    current_site = Site.objects.get_current()
+    DEFAULT_TITLE = current_site.name or current_site.domain
 
 class MetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
@@ -71,12 +80,9 @@ class MetaData(models.Model):
     def html(self):
         # TODO: Make sure there are no double quotes (") in the content="" attributes
         tags = []
-        if self.title:
-            tags.append(u"<title>%s</title>" % self.title)
-        if self.keywords:
-            tags.append(u'<meta name="keywords" content="%s">' % striptags(self.keywords))
-        if self.description:
-            tags.append(u'<meta name="description" content="%s">' % striptags(self.description))
+        tags.append(u"<title>%s</title>" % (mark_safe(self.title) or DEFAULT_TITLE))
+        tags.append(u'<meta name="keywords" content="%s">' % (mark_safe(striptags(self.keywords)) or DEFAULT_KEYWORDS))
+        tags.append(u'<meta name="description" content="%s">' % (mark_safe(striptags(self.description)) or DEFAULT_DESCRIPTION))
         if self.extra:
             tags.append(self.extra)
         return mark_safe("\n".join(tags))
@@ -87,6 +93,7 @@ class MetaData(models.Model):
         context['meta_title'] = mark_safe(self.title)
         context['meta_keywords'] = mark_safe(striptags(self.keywords))
         context['meta_description'] = mark_safe(striptags(self.description))
+        context['seo_meta_data'] = self.html
         return context
 
     def update_related_object(self):

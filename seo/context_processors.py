@@ -7,4 +7,4 @@ def seo(request):
         meta_data = MetaData.objects.get(path=request.path)
         return meta_data.context
     except MetaData.DoesNotExist:
-        return {}
+        return MetaData().context
