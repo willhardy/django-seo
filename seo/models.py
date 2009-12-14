@@ -9,8 +9,7 @@
            as a list of model or app names eg ('flatpages.FlatPage', 'blog',)
         4. Do one or both of the following
           a) Add 'seo.context_processors.seo' to TEMPLATE_CONTEXT_PROCESSORS
-             and reference meta_title, meta_description and meta_keywords in 
-             your (base) templates
+             and reference {{ seo_meta_data }} in your (eg base) template
           b) Add 'seo.middleware.MetaDataMiddleware' to MIDDLEWARE and
              make sure meta data isn't already defined in the template.
 
@@ -24,9 +23,11 @@ from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.conf import settings
 
-DEFAULT_TITLE = getattr(settings, "SEO_DEFAULT_TITLE", None)
-DEFAULT_KEYWORDS = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
+# TODO: Document the use of these
+DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", None)
+DEFAULT_KEYWORDS    = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
 DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
+CONTEXT_VARIABLE    = getattr(settings, "SEO_CONTEXT_VARIABLE", 'seo_meta_data')
 if not DEFAULT_TITLE:
     from django.contrib.sites.models import Site
     current_site = Site.objects.get_current()
@@ -79,24 +80,17 @@ class MetaData(models.Model):
 
     @property
     def html(self):
-        # TODO: Make sure there are no double quotes (") in the content="" attributes
-        tags = []
-        tags.append(u"<title>%s</title>" % (mark_safe(self.title) or DEFAULT_TITLE))
-        tags.append(u'<meta name="keywords" content="%s">' % (mark_safe(striptags(self.keywords)) or DEFAULT_KEYWORDS))
-        tags.append(u'<meta name="description" content="%s">' % (mark_safe(striptags(self.description)) or DEFAULT_DESCRIPTION))
-        if self.extra:
-            tags.append(self.extra)
-        return mark_safe("\n".join(tags))
+        tags = (
+            u'<title>%s</title>' % (self.title or DEFAULT_TITLE),
+            u'<meta name="keywords" content="%s">' % (self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'),
+            u'<meta name="description" content="%s">' % (self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'),
+            self.extra,
+            )
+        return mark_safe("\n".join(filter(None, tags)))
 
     @property
     def context(self):
-        context = {}
-        context['meta_title'] = mark_safe(self.title)
-        context['meta_keywords'] = mark_safe(striptags(self.keywords))
-        context['meta_description'] = mark_safe(striptags(self.description))
-        context['meta_heading'] = mark_safe(self.heading)
-        context['seo_meta_data'] = self.html
-        return context
+        return {CONTEXT_VARIABLE: TemplateMetaData(self)}
 
     def update_related_object(self):
         """ Helps ensure that denormalised data is synchronised. 
@@ -127,9 +121,9 @@ class MetaData(models.Model):
             if hasattr(self.content_object, 'get_absolute_url'):
                 self.path = self.content_object.get_absolute_url() or self.path
             if hasattr(self.content_object, 'meta_description'):
-                self.description = self.content_object.meta_description or self.description
+                self.description = striptags(self.content_object.meta_description) or self.description
             if hasattr(self.content_object, 'meta_keywords'):
-                self.keywords = self.content_object.meta_keywords or self.keywords
+                self.keywords = striptags(self.content_object.meta_keywords) or self.keywords
             if hasattr(self.content_object, 'meta_title'):
                 self.title = self.content_object.meta_title or self.title
 
@@ -140,6 +134,18 @@ class MetaData(models.Model):
                 self.title = self.title or self.content_object.title
 
             return True
+
+class TemplateMetaData(dict):
+    """ Class to make template access to meta data more convienient.
+    """
+    title       = property(lambda s: mark_safe(s._meta_data.title))
+    keywords    = property(lambda s: mark_safe(s._meta_data.keywords))
+    description = property(lambda s: mark_safe(s._meta_data.description))
+    heading     = property(lambda s: mark_safe(s._meta_data.heading))
+    def __init__(self, meta_data):
+        self._meta_data = meta_data
+    def __unicode__(self):
+        return self._meta_data.html
 
 def update_callback(sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant
@@ -153,7 +159,12 @@ def update_callback(sender, instance, created, **kwargs):
     """
     meta_data = None
     content_type = ContentType.objects.get_for_model(instance)
+
+    # If this object does not define a path, don't worry about automatic update
+    if not hasattr(instance, 'get_absolute_url'):
+        return
     path = instance.get_absolute_url()
+
     if path:
         try:
             # Look for an existing object with this path
