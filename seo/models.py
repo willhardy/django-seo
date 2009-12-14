@@ -47,7 +47,7 @@ class MetaData(models.Model):
 
     # These fields can be manually overridden or populated from the object itself.
     # If there is a conflict the information in the object currently being saved is preserved
-    path        = models.CharField(max_length=255, default="", blank=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
+    path        = models.CharField(max_length=255, default="", blank=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
     title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
     heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag")
     keywords    = models.TextField(default="", blank=True)
@@ -123,17 +123,17 @@ class MetaData(models.Model):
             changes have been made. 
         """
         if self.content_object:
-            # Populate the URL if the object defines it
+            # Populate core fields if the object explicitly defines them
             if hasattr(self.content_object, 'get_absolute_url'):
                 self.path = self.content_object.get_absolute_url() or self.path
-            # Populate the description and keywords if explicitly defined
             if hasattr(self.content_object, 'meta_description'):
                 self.description = self.content_object.meta_description or self.description
             if hasattr(self.content_object, 'meta_keywords'):
                 self.keywords = self.content_object.meta_keywords or self.keywords
-            # Populate the title if we find one
             if hasattr(self.content_object, 'meta_title'):
                 self.title = self.content_object.meta_title or self.title
+
+            # Populate using other, non-meta fields, but never overwrite existing data
             elif hasattr(self.content_object, 'page_title'):
                 self.title = self.title or self.content_object.page_title
             elif hasattr(self.content_object, 'title'):
@@ -144,9 +144,42 @@ class MetaData(models.Model):
 def update_callback(sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant
         meta data, or just creating an entry. 
+
+        NB:
+        It is theoretically possible that this code will lead to two instances
+        with the same generic foreign key.  If you have non-overlapping URLs,
+        then this shouldn't happen.
+        I've held it to be more important to avoid double path entries.
     """
+    meta_data = None
     content_type = ContentType.objects.get_for_model(instance)
-    meta_data, created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
+    path = instance.get_absolute_url()
+    if path:
+        try:
+            # Look for an existing object with this path
+            meta_data = MetaData.objects.get(path=path)
+            # If a path is defined, but the content_type and object_id aren't, 
+            # then adopt this object
+            if not meta_data.content_type:
+                meta_data.content_type = content_type
+                meta_data.object_id = instance.id
+            # If another object has the same path, remove the path.
+            # It's harsh, but we need a unique path and will assume the other
+            # link is outdated.
+            else:
+                meta_data.path = None
+                meta_data.save()
+                # Move on, this isn't out meta_data instance
+                meta_data = None
+        except MetaData.DoesNotExist:
+            pass
+
+    # If the path-based search didn't work, look for (or create) an existing
+    # instance linked to this object.
+    if not meta_data:
+        meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
+
+    # Update the MetaData instance with data from the object
     if meta_data.update_from_related_object():
         meta_data.save(update_related=False)
 
