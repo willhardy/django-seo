@@ -135,9 +135,9 @@ class MetaData(models.Model):
             if hasattr(self.content_object, 'meta_title'):
                 self.title = self.content_object.meta_title or self.title
             elif hasattr(self.content_object, 'page_title'):
-                self.title = self.content_object.page_title or self.title
+                self.title = self.title or self.content_object.page_title
             elif hasattr(self.content_object, 'title'):
-                self.title = self.content_object.title or self.title
+                self.title = self.title or self.content_object.title
 
             return True
 
