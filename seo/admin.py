@@ -10,7 +10,7 @@ class MetaDataAdmin(admin.ModelAdmin):
     search_fields = ('title', 'keywords', 'description')
     fieldsets = (
         (None, {
-            'fields': ('path', 'title', 'keywords', 'description')
+            'fields': ('path', 'title', 'heading', 'keywords', 'description')
         }),
         ('Advanced', {
             'classes' : ('collapse',),

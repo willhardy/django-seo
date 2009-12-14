@@ -47,8 +47,9 @@ class MetaData(models.Model):
 
     # These fields can be manually overridden or populated from the object itself.
     # If there is a conflict the information in the object currently being saved is preserved
-    path         = models.CharField(max_length=255, default="", blank=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
-    title       = models.CharField(max_length=511, default="", blank=True)
+    path        = models.CharField(max_length=255, default="", blank=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
+    title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
+    heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag")
     keywords    = models.TextField(default="", blank=True)
     description = models.TextField(default="", blank=True)
     extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
@@ -93,6 +94,7 @@ class MetaData(models.Model):
         context['meta_title'] = mark_safe(self.title)
         context['meta_keywords'] = mark_safe(striptags(self.keywords))
         context['meta_description'] = mark_safe(striptags(self.description))
+        context['meta_heading'] = mark_safe(self.heading)
         context['seo_meta_data'] = self.html
         return context
 
