@@ -185,14 +185,14 @@ def update_callback(sender, instance, created, **kwargs):
         except MetaData.DoesNotExist:
             pass
 
-    # If the path-based search didn't work, look for (or create) an existing
-    # instance linked to this object.
-    if not meta_data:
-        meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
+        # If the path-based search didn't work, look for (or create) an existing
+        # instance linked to this object.
+        if not meta_data:
+            meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
 
-    # Update the MetaData instance with data from the object
-    if meta_data.update_from_related_object():
-        meta_data.save(update_related=False)
+        # Update the MetaData instance with data from the object
+        if meta_data.update_from_related_object():
+            meta_data.save(update_related=False)
 
 
 # Connect the models listed in settings to the update callback.
