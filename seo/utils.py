@@ -26,3 +26,26 @@ def get_seo_models():
 def get_seo_content_types():
     """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
     return [ ContentType.objects.get_for_model(m) for m in get_seo_models() ]
+
+class SEO_CONTENT_TYPE_CHOICES(dict):
+    """ Class to lazily populate the choices for content types (they wont be there before a syncdb). 
+        Items are populated on first interaction (getattr or len) with dict.
+    """
+    def _populate_content_types(self):
+        if not super(SEO_CONTENT_TYPE_CHOICES, self).__len__():
+            self['id__in'] = [ct.id for ct in get_seo_content_types()]
+
+    def __getitem__(self, key):
+        self._populate_content_types()
+        return super(SEO_CONTENT_TYPE_CHOICES, self).__getitem__(key)
+
+    def __len__(self):
+        self._populate_content_types()
+        return super(SEO_CONTENT_TYPE_CHOICES, self).__len__()
+
+    def __iter__(self):
+        self._populate_content_types()
+        return super(SEO_CONTENT_TYPE_CHOICES, self).__iter__()
+
+SEO_CONTENT_TYPE_CHOICES = SEO_CONTENT_TYPE_CHOICES()
+
