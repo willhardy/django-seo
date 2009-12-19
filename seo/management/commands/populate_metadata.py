@@ -20,5 +20,13 @@ class Command(BaseCommand):
 
             print "Adding %d instances from %s.%s" % (instances.count(), model._meta.app_label, model._meta.object_name)
 
+            skipped = 0
             for instance in instances:
-                update_callback(sender=model, instance=instance, created=False)
+                try:
+                    update_callback(sender=model, instance=instance, created=False)
+                except:
+                    skipped += 1
+            if skipped:
+                print "Skipped %d instances from %s.%s" % (instances.count(), model._meta.app_label, model._meta.object_name)
+            skipped = 0
+ 
