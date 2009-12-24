@@ -178,7 +178,7 @@ def update_callback(sender, instance, created, **kwargs):
             # It's harsh, but we need a unique path and will assume the other
             # link is outdated.
             else:
-                meta_data.path = None
+                meta_data.path = ""
                 meta_data.save()
                 # Move on, this isn't out meta_data instance
                 meta_data = None
