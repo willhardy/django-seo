@@ -82,8 +82,8 @@ class MetaData(models.Model):
     def html(self):
         tags = (
             u'<title>%s</title>' % (self.title or DEFAULT_TITLE),
-            u'<meta name="keywords" content="%s">' % (self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'),
-            u'<meta name="description" content="%s">' % (self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'),
+            u'<meta name="keywords" content="%s" />' % (self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'),
+            u'<meta name="description" content="%s" />' % (self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'),
             self.extra,
             )
         return mark_safe("\n".join(filter(None, tags)))
