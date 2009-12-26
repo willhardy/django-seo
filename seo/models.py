@@ -28,10 +28,17 @@ DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", None)
 DEFAULT_KEYWORDS    = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
 DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
 CONTEXT_VARIABLE    = getattr(settings, "SEO_CONTEXT_VARIABLE", 'seo_meta_data')
+DOCTYPE             = getattr(settings, "SEO_DOCTYPE", 'xhtml')
+
 if not DEFAULT_TITLE:
+    # TODO: There is a way to easily detect if sites is installed.
     from django.contrib.sites.models import Site
     current_site = Site.objects.get_current()
     DEFAULT_TITLE = current_site.name or current_site.domain
+
+# Until Django has a form of doctype awareness, this is it
+html_doctypes = ('html4', 'html5', 'html4trans')
+SLASH = DOCTYPE in html_doctypes and "" or "/"
 
 class MetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
@@ -80,16 +87,23 @@ class MetaData(models.Model):
 
     @property
     def html(self):
+        # TODO: Rewrite this as a template?
         tags = (
             u'<title>%s</title>' % (self.title or DEFAULT_TITLE),
-            u'<meta name="keywords" content="%s" />' % (self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'),
-            u'<meta name="description" content="%s" />' % (self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'),
+            u'<meta name="keywords" content="%s" %s>' % ((self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'), SLASH),
+            u'<meta name="description" content="%s" %s>' % ((self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'), SLASH),
             self.extra,
             )
         return mark_safe("\n".join(filter(None, tags)))
 
     @property
+    def xhtml(self):
+        # TODO This can also be provided by template
+        return self.html
+
+    @property
     def context(self):
+        # TODO: replace quotes in keywords and description?
         return {CONTEXT_VARIABLE: TemplateMetaData(self)}
 
     def update_related_object(self):
