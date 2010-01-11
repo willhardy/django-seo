@@ -81,6 +81,8 @@ class MetaData(models.Model):
         return self.path or "(%s)" % self.title
 
     def save(self, force_insert=False, force_update=False, update_related=True):
+        self.keywords = ", ".join(self.keywords.strip().splitlines())
+        self.description = " ".join(self.description.strip().splitlines())
         super(MetaData, self).save(force_insert, force_update)
         if update_related:
             self.update_related_object()
