@@ -22,23 +22,24 @@ from seo.utils import get_seo_models, SEO_CONTENT_TYPE_CHOICES
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.conf import settings
+from django.template.loader import render_to_string
+from django.contrib.sites.models import Site
+try:
+    from BeautifulSoup import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 # TODO: Document the use of these
 DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", None)
 DEFAULT_KEYWORDS    = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
 DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
 CONTEXT_VARIABLE    = getattr(settings, "SEO_CONTEXT_VARIABLE", 'seo_meta_data')
-DOCTYPE             = getattr(settings, "SEO_DOCTYPE", 'xhtml')
 
-if not DEFAULT_TITLE:
-    # TODO: There is a way to easily detect if sites is installed.
-    from django.contrib.sites.models import Site
+if not DEFAULT_TITLE and Site._meta.installed:
     current_site = Site.objects.get_current()
     DEFAULT_TITLE = current_site.name or current_site.domain
 
-# Until Django has a form of doctype awareness, this is it
-html_doctypes = ('html4', 'html5', 'html4trans')
-SLASH = DOCTYPE in html_doctypes and "" or "/"
+TEMPLATE = "seo/head.html"
 
 class MetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
@@ -83,44 +84,40 @@ class MetaData(models.Model):
     def save(self, force_insert=False, force_update=False, update_related=True):
         self.keywords = ", ".join(self.keywords.strip().splitlines())
         self.description = " ".join(self.description.strip().splitlines())
+        self.extra = strip_for_head(self.extra.strip())
         super(MetaData, self).save(force_insert, force_update)
         if update_related:
             self.update_related_object()
 
     @property
     def html(self):
-        # TODO: Rewrite this as a template?
-        tags = (
-            u'<title>%s</title>' % (self.title or DEFAULT_TITLE),
-            u'<meta name="keywords" content="%s" %s>' % ((self.keywords or DEFAULT_KEYWORDS or "").replace('"', '&#34;'), SLASH),
-            u'<meta name="description" content="%s" %s>' % ((self.description or DEFAULT_DESCRIPTION or "").replace('"', '&#34;'), SLASH),
-            self.extra,
-            )
-        return mark_safe("\n".join(filter(None, tags)))
-
-    @property
-    def xhtml(self):
-        # TODO This can also be provided by template
-        return self.html
+        """ Return an html representation of this meta data suitable
+            for inclusion in <head>. 
+            Note:
+              * 'heading' should not be included.
+              * Be careful not to try to get the full html inside this template.
+        """
+        return mark_safe(render_to_string(TEMPLATE, self.context))
 
     @property
     def context(self):
-        # TODO: replace quotes in keywords and description?
         return {CONTEXT_VARIABLE: TemplateMetaData(self)}
 
     def update_related_object(self):
         """ Helps ensure that denormalised data is synchronised. 
             That is, if data is discovered through explicit fields, these are 
         """
-        if self.content_object:
+        instance = self.content_object
+        if instance:
             attrs = {}
+
             # Only populate the fields that are explicity defined
-            # TODO: Check for actual fields, not attributes!
-            if hasattr(self.content_object, 'meta_description'):
+            fields = instance._meta.get_all_field_names()
+            if 'meta_description' in fields:
                 attrs['meta_description'] = self.description
-            if hasattr(self.content_object, 'meta_keywords'):
+            if 'meta_keywords' in fields:
                 attrs['meta_keywords'] = self.keywords
-            if hasattr(self.content_object, 'meta_title'):
+            if 'meta_title' in fields:
                 attrs['meta_title'] = self.title
 
             if attrs:
@@ -151,17 +148,34 @@ class MetaData(models.Model):
 
             return True
 
+
 class TemplateMetaData(dict):
     """ Class to make template access to meta data more convienient.
     """
-    title       = property(lambda s: mark_safe(s._meta_data.title))
-    keywords    = property(lambda s: mark_safe(s._meta_data.keywords))
-    description = property(lambda s: mark_safe(s._meta_data.description))
+    title       = property(lambda s: mark_safe(s._meta_data.title or DEFAULT_TITLE))
+    keywords    = property(lambda s: mark_safe((s._meta_data.keywords or DEFAULT_KEYWORDS).replace('"', '&#34;')))
+    description = property(lambda s: mark_safe((s._meta_data.description or DEFAULT_DESCRIPTION).replace('"', '&#34;')))
     heading     = property(lambda s: mark_safe(s._meta_data.heading))
+    extra       = property(lambda s: mark_safe(s._meta_data.extra))
+
     def __init__(self, meta_data):
         self._meta_data = meta_data
+
     def __unicode__(self):
+        """ String version of this object is the html output. """
         return self._meta_data.html
+
+
+VALID_HEAD_TAGS = "head title base link meta script".split()
+def strip_for_head(value):
+    """ Strips text from the given html string, leaving only tags.
+    """
+    if BeautifulSoup is None:
+        return value
+    soup = BeautifulSoup(value)
+    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
+    return str(soup)
+
 
 def update_callback(sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant
