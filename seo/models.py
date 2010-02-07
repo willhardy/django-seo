@@ -81,11 +81,11 @@ class MetaData(models.Model):
     def __unicode__(self):
         return self.path or "(%s)" % self.title
 
-    def save(self, force_insert=False, force_update=False, update_related=True):
+    def save(self, update_related=True, *args, **kwargs):
         self.keywords = ", ".join(self.keywords.strip().splitlines())
         self.description = " ".join(self.description.strip().splitlines())
         self.extra = strip_for_head(self.extra.strip())
-        super(MetaData, self).save(force_insert, force_update)
+        super(MetaData, self).save(*args, **kwargs)
         if update_related:
             self.update_related_object()
 
