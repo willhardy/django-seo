@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 
+import logging
 from django.conf import settings
 from django.db import models
-from django.contrib.contenttypes.models import ContentType
 
 setting_name_seo_models = "SEO_MODELS"
 
@@ -25,6 +25,8 @@ def get_seo_models():
 
 def get_seo_content_types():
     """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
+    from django.contrib.contenttypes.models import ContentType
+    logging.debug("Populating content type choices.")
     return [ ContentType.objects.get_for_model(m) for m in get_seo_models() ]
 
 class SEO_CONTENT_TYPE_CHOICES(dict):
