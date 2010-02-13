@@ -59,6 +59,7 @@ class MetaData(models.Model):
     path        = models.CharField(max_length=255, default="", blank=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
     title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
     heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag")
+    subheading  = models.CharField(max_length=511, default="", blank=True, help_text="This is the page subheading, that appears near the &lt;h1&gt; tag")
     keywords    = models.TextField(default="", blank=True)
     description = models.TextField(default="", blank=True)
     extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
@@ -94,7 +95,7 @@ class MetaData(models.Model):
         """ Return an html representation of this meta data suitable
             for inclusion in <head>. 
             Note:
-              * 'heading' should not be included.
+              * 'heading' and 'subheading' should not be included.
               * Be careful not to try to get the full html inside this template.
         """
         return mark_safe(render_to_string(TEMPLATE, self.context))
