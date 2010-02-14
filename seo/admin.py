@@ -25,9 +25,6 @@ class InlineMetaDataForm(forms.ModelForm):
         model = models.MetaData
         fields = ('title', 'heading', 'subheading', 'keywords', 'description' )
 
-    #def save(self, commit=True):
-        #super(InlineMetaDataForm, self).save(commit)
-
 
 class MetaDataInline(generic.GenericStackedInline):
     """ Inline for inclusion in any relatable model admin. 
@@ -35,12 +32,15 @@ class MetaDataInline(generic.GenericStackedInline):
     """
     max_num = 1
     model = models.MetaData
+    # The following is currently broken in Django trunk (1.2 beta)
+    #formset = generic.generic_inlineformset_factory(models.MetaData, form=InlineMetaDataForm, can_delete=False)
     form = InlineMetaDataForm
 
 
+
 class MetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path', 'title', 'heading', 'subheading', 'content_type', )#'keywords', 'description', 'content_type')
-    list_editable = ('title', 'heading', 'subheading')#'keywords', 'description')
+    list_display = ('path', 'title', 'heading', 'subheading', 'content_type', )
+    list_editable = ('title', 'heading', 'subheading')
     list_filter = ('content_type',)
     search_fields = ('path', 'title', 'keywords', 'description', 'heading', 'subheading')
     fieldsets = (
