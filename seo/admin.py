@@ -18,13 +18,13 @@ class MetaDataForm(forms.ModelForm):
         return value
 
 class MetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path', 'title', 'content_type', )#'keywords', 'description', 'content_type')
-    list_editable = ('title', )#'keywords', 'description')
+    list_display = ('path', 'title', 'heading', 'subheading', 'content_type', )#'keywords', 'description', 'content_type')
+    list_editable = ('title', 'heading', 'subheading')#'keywords', 'description')
     list_filter = ('content_type',)
     search_fields = ('title', 'keywords', 'description')
     fieldsets = (
         (None, {
-            'fields': ('path', 'title', 'heading', 'keywords', 'description')
+            'fields': ('path', 'title', 'keywords', 'description', 'heading', 'subheading')
         }),
         ('Advanced', {
             'classes' : ('collapse',),

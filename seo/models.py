@@ -157,6 +157,7 @@ class TemplateMetaData(dict):
     keywords    = property(lambda s: mark_safe((s._meta_data.keywords or DEFAULT_KEYWORDS).replace('"', '&#34;')))
     description = property(lambda s: mark_safe((s._meta_data.description or DEFAULT_DESCRIPTION).replace('"', '&#34;')))
     heading     = property(lambda s: mark_safe(s._meta_data.heading))
+    subheading  = property(lambda s: mark_safe(s._meta_data.subheading))
     extra       = property(lambda s: mark_safe(s._meta_data.extra))
 
     def __init__(self, meta_data):
