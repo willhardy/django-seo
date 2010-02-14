@@ -209,7 +209,7 @@ def update_callback(sender, instance, created, **kwargs):
             # If another object has the same path, remove the path.
             # It's harsh, but we need a unique path and will assume the other
             # link is outdated.
-            else:
+            elif meta_data.content_type != content_type or meta_data.object_id != instance.id:
                 meta_data.path = ""
                 meta_data.save()
                 # Move on, this isn't out meta_data instance
@@ -227,6 +227,10 @@ def update_callback(sender, instance, created, **kwargs):
             meta_data.save(update_related=False)
 
 
-# Connect the models listed in settings to the update callback.
+# The following was removed in favor of Inline meta editing in the admin
+# TODO: is it possible to detect which models use the inline in their
+# registered admin, without a circular import?
+
+## Connect the models listed in settings to the update callback.
 for model in get_seo_models():
     models.signals.post_save.connect(update_callback, sender=model)

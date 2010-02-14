@@ -1,10 +1,12 @@
 # -*- coding: UTF-8 -*-
 
 from django.contrib import admin
+from django.contrib.contenttypes import generic
 from seo import models
 
 from django import forms
 from django.utils.html import strip_tags
+
 
 class MetaDataForm(forms.ModelForm):
     class Meta:
@@ -16,6 +18,26 @@ class MetaDataForm(forms.ModelForm):
         if strip_tags(value).strip():
             raise forms.ValidationError("Extra code may not contain text outside tags (advanced use only).")
         return value
+
+
+class InlineMetaDataForm(forms.ModelForm):
+    class Meta:
+        model = models.MetaData
+        fields = ('title', 'heading', 'subheading', 'keywords', 'description' )
+
+    #def save(self, commit=True):
+        #super(InlineMetaDataForm, self).save(commit)
+
+
+class MetaDataInline(generic.GenericStackedInline):
+    """ Inline for inclusion in any relatable model admin. 
+        Simply import and add to the list of inlines.
+    """
+    max_num = 1
+    extra = 1
+    model = models.MetaData
+    form = InlineMetaDataForm
+
 
 class MetaDataAdmin(admin.ModelAdmin):
     list_display = ('path', 'title', 'heading', 'subheading', 'content_type', )#'keywords', 'description', 'content_type')
