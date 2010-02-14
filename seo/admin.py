@@ -34,7 +34,6 @@ class MetaDataInline(generic.GenericStackedInline):
         Simply import and add to the list of inlines.
     """
     max_num = 1
-    extra = 1
     model = models.MetaData
     form = InlineMetaDataForm
 
@@ -43,7 +42,7 @@ class MetaDataAdmin(admin.ModelAdmin):
     list_display = ('path', 'title', 'heading', 'subheading', 'content_type', )#'keywords', 'description', 'content_type')
     list_editable = ('title', 'heading', 'subheading')#'keywords', 'description')
     list_filter = ('content_type',)
-    search_fields = ('title', 'keywords', 'description')
+    search_fields = ('path', 'title', 'keywords', 'description', 'heading', 'subheading')
     fieldsets = (
         (None, {
             'fields': ('path', 'title', 'keywords', 'description', 'heading', 'subheading')

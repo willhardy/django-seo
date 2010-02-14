@@ -58,10 +58,10 @@ class MetaData(models.Model):
     # If there is a conflict the information in the object currently being saved is preserved
     path        = models.CharField(max_length=255, default="", blank=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
     title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
-    heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag")
-    subheading  = models.CharField(max_length=511, default="", blank=True, help_text="This is the page subheading, that appears near the &lt;h1&gt; tag")
-    keywords    = models.TextField(default="", blank=True)
-    description = models.TextField(default="", blank=True)
+    heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag.")
+    subheading  = models.CharField(max_length=511, default="", blank=True, help_text="This is the page subheading, that appears near the &lt;h1&gt; tag.")
+    keywords    = models.TextField(default="", blank=True, help_text="Comma-separated keywords for search engines.")
+    description = models.TextField(default="", blank=True, help_text="A short description, displayed in search results.")
     extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
 
     # If the generic foreign key is set, populate the above fields from there
@@ -226,10 +226,6 @@ def update_callback(sender, instance, created, **kwargs):
         if meta_data.update_from_related_object():
             meta_data.save(update_related=False)
 
-
-# The following was removed in favor of Inline meta editing in the admin
-# TODO: is it possible to detect which models use the inline in their
-# registered admin, without a circular import?
 
 ## Connect the models listed in settings to the update callback.
 for model in get_seo_models():
