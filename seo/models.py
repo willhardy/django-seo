@@ -221,12 +221,22 @@ def update_callback(sender, instance, created, **kwargs):
         # instance linked to this object.
         if not meta_data:
             meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
+            if not md_created: # handle url change
+                meta_data.path=path
+                meta_data.save()
 
         # Update the MetaData instance with data from the object
         if meta_data.update_from_related_object():
             meta_data.save(update_related=False)
 
+def delete_callback(sender, instance,  **kwargs):
+    content_type = ContentType.objects.get_for_model(instance)
+    try:
+        MetaData.objects.get(content_type=content_type, object_id=instance.id).delete()
+    except:
+        pass
 
 ## Connect the models listed in settings to the update callback.
 for model in get_seo_models():
     models.signals.post_save.connect(update_callback, sender=model)
+    models.signals.pre_delete.connect(delete_callback, sender=model)
