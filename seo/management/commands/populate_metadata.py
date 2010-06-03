@@ -1,4 +1,4 @@
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 from django.core.management.base import BaseCommand
 from seo.models import get_seo_models, update_callback, MetaData
