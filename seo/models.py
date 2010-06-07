@@ -24,20 +24,26 @@ from django.utils.safestring import mark_safe
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.contrib.sites.models import Site
+from django.template import Template, Context
+from django.utils.functional import lazy
 try:
     from BeautifulSoup import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
 
 # TODO: Document the use of these
-DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", None)
+DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", "")
 DEFAULT_KEYWORDS    = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
 DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
 CONTEXT_VARIABLE    = getattr(settings, "SEO_CONTEXT_VARIABLE", 'seo_meta_data')
 
 if not DEFAULT_TITLE and Site._meta.installed:
-    current_site = Site.objects.get_current()
-    DEFAULT_TITLE = current_site.name or current_site.domain
+    # Because we are in models.py, the Site information 
+    # wont be available until the tables have been created
+    def get_current_site_title():
+        current_site = Site.objects.get_current()
+        return current_site.name or current_site.domain
+    DEFAULT_TITLE = lazy(get_current_site_title, unicode)
 
 TEMPLATE = "seo/head.html"
 
@@ -149,24 +155,68 @@ class MetaData(models.Model):
 
             return True
 
+    @property
+    def category_meta_data(self):
+        """ Return the Meta Data instance that is responsible for the entire content type. 
+            If this is not applicable, return None.
+        """
+        if self.content_type_id is not None and self.object_id is not None:
+            if not hasattr(self, '_category_meta_data'):
+                self._category_meta_data = self.__class__._default_manager.get(content_type__id=self.content_type_id, object_id__isnull=True)
+            return self._category_meta_data
+
 
 class TemplateMetaData(dict):
     """ Class to make template access to meta data more convienient.
     """
-    title       = property(lambda s: mark_safe(s._meta_data.title or DEFAULT_TITLE))
-    keywords    = property(lambda s: mark_safe((s._meta_data.keywords or DEFAULT_KEYWORDS).replace('"', '&#34;')))
-    description = property(lambda s: mark_safe((s._meta_data.description or DEFAULT_DESCRIPTION).replace('"', '&#34;')))
-    heading     = property(lambda s: mark_safe(s._meta_data.heading))
-    subheading  = property(lambda s: mark_safe(s._meta_data.subheading))
-    extra       = property(lambda s: mark_safe(s._meta_data.extra))
+    title       = property(lambda s: s._get_value('title', DEFAULT_TITLE))
+    keywords    = property(lambda s: s._get_value('keywords', DEFAULT_KEYWORDS, tag=True))
+    description = property(lambda s: s._get_value('description', DEFAULT_DESCRIPTION, tag=True))
+    heading     = property(lambda s: s._get_value('heading'))
+    subheading  = property(lambda s: s._get_value('subheading'))
+    extra       = property(lambda s: s._get_value('extra'))
+
+    def _get_value(self, name, default=None, tag=False):
+        """ Retrieves a sensible value and prepares it for display. """
+        # Get the raw value from the meta data object
+        value = getattr(self._meta_data, name)
+        # If no value is provided by the meta_data object, look for a
+        # category or a default
+        if not value:
+            value = self._get_category_value(name) or default or None
+        # If this belongs in a tag, escape quote symbols
+        if tag:
+            value = value.replace('"', '&#34;')
+        # Prevent auto escaping on this value
+        return mark_safe(value)
+
+    def _get_category_value(self, name):
+        """ Retrieve a value from a category meta data object, 
+            allowing a single point of control for an entire content type.
+        """
+        val = getattr(self._meta_data.category_meta_data, name, None)
+        if val and self._meta_data.object_id:
+            # Substitute variables
+            val = val.replace(u"%s", u"%%s")
+            # Handle keyword substituion "one two %(name)s three"
+            val = resolve(val,self._meta_data.content_object)
+        return val
 
     def __init__(self, meta_data):
         self._meta_data = meta_data
+        self._category_meta_data = None
 
     def __unicode__(self):
         """ String version of this object is the html output. """
         return self._meta_data.html
 
+
+def resolve(value, model_instance):
+    """ Resolves any template references in the given value. 
+    """
+    if "{" in value and model_instance is not None:
+        value = Template(value).render(Context({model_instance._meta.module_name: model_instance}))
+    return value
 
 VALID_HEAD_TAGS = "head title base link meta script".split()
 def strip_for_head(value):
