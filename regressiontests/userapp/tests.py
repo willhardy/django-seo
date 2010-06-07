@@ -80,6 +80,25 @@ class LinkedObjects(TestCase):
         page = Page.objects.get(id=self.page.id)
         self.assertEqual(page.title, "Page Title")
 
+    def test_adoption(self):
+        """ Check that an existing meta data object is adopted by a 
+            new model instance.
+        """
+        # Create a meta data object manually
+        meta_data = MetaData.objects.create(path="/products/2/", title="Old Title", keywords="Old Keywords")
+        self.assertEqual(meta_data.object_id, None)
+        num_data = MetaData.objects.all().count()
+
+        # Create new product with the same path as the existing meta data
+        product = Product.objects.create(meta_title="New Title")
+
+        # Check that the existing meta data object was adopted
+        self.assertEqual(MetaData.objects.all().count(), num_data)
+        meta_data = MetaData.objects.get(path="/products/2/")
+        self.assertEqual(meta_data.title, "New Title")
+        self.assertEqual(meta_data.keywords, "Old Keywords")
+        self.assertEqual(meta_data.object_id, 2)
+
 class ContentTypes(TestCase):
     """ A set of unit tests that check the usage of content types. """
 

@@ -12,6 +12,7 @@ def get_seo_models():
     seo_models = []
     for model_name in getattr(settings, setting_name_seo_models, ()):
         if "." in model_name:
+            # TODO: Test this block
             app_label, model_name = model_name.split(".", 1)
             model = models.get_model(app_label, model_name)
             if model:
@@ -25,6 +26,7 @@ def get_seo_models():
 
 def get_seo_content_types():
     """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
+    # TODO: Test this function
     from django.contrib.contenttypes.models import ContentType
     logging.debug("Populating content type choices.")
     return [ ContentType.objects.get_for_model(m) for m in get_seo_models() ]
@@ -32,6 +34,8 @@ def get_seo_content_types():
 class SEO_CONTENT_TYPE_CHOICES(dict):
     """ Class to lazily populate the choices for content types (they wont be there before a syncdb). 
         Items are populated on first interaction (getattr or len) with dict.
+
+        TODO: Test this class
     """
     def _populate_content_types(self):
         if not super(SEO_CONTENT_TYPE_CHOICES, self).__len__():

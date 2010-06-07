@@ -20,7 +20,7 @@ class Product(models.Model):
 
     @models.permalink
     def get_absolute_url(self):
-        return ('userapp_project_detail', [self.id], {})
+        return ('userapp_product_detail', [self.id], {})
 
     def __unicode__(self):
         return self.meta_title

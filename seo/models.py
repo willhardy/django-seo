@@ -82,10 +82,12 @@ class MetaData(models.Model):
         verbose_name_plural = u"metadata"
 
     def get_absolute_url(self):
+        # TODO: Test this method
         if self.path:
             return self.path
 
     def __unicode__(self):
+        # TODO: Test this method
         return self.path or "(%s)" % self.title
 
     def save(self, update_related=True, *args, **kwargs):
@@ -146,10 +148,12 @@ class MetaData(models.Model):
                 self.keywords = striptags(self.content_object.meta_keywords) or self.keywords
             if hasattr(self.content_object, 'meta_title'):
                 self.title = self.content_object.meta_title or self.title
+                # Populate the heading, without overwriting existing data
                 self.heading = self.heading or self.content_object.meta_title
 
             # Populate using other, non-meta fields, but never overwrite existing data
             elif hasattr(self.content_object, 'page_title'):
+                # TODO: Test this block
                 self.title = self.title or self.content_object.page_title
                 self.heading = self.heading or self.content_object.page_title
             elif hasattr(self.content_object, 'title'):
@@ -214,6 +218,7 @@ class TemplateMetaData(dict):
 
     def __unicode__(self):
         """ String version of this object is the html output. """
+        # TODO: Test this method
         return self._meta_data.html
 
 
@@ -227,9 +232,12 @@ def resolve(value, model_instance):
 VALID_HEAD_TAGS = "head title base link meta script".split()
 def strip_for_head(value):
     """ Strips text from the given html string, leaving only tags.
+        This functionality requires BeautifulSoup, nothing will be 
+        done otherwise.
     """
     if BeautifulSoup is None:
         return value
+    # TODO: Test this block
     soup = BeautifulSoup(value)
     [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
     return str(soup)
@@ -261,14 +269,15 @@ def update_callback(sender, instance, created, **kwargs):
             # then adopt this object
             if not meta_data.content_type:
                 meta_data.content_type = content_type
-                meta_data.object_id = instance.id
+                meta_data.object_id = instance.pk
             # If another object has the same path, remove the path.
             # It's harsh, but we need a unique path and will assume the other
             # link is outdated.
-            elif meta_data.content_type != content_type or meta_data.object_id != instance.id:
-                meta_data.path = ""
+            elif meta_data.content_type != content_type or meta_data.object_id != instance.pk:
+                # TODO: Test this block
+                meta_data.path = None
                 meta_data.save()
-                # Move on, this isn't out meta_data instance
+                # Move on, this meta_data instance isn't for us
                 meta_data = None
         except MetaData.DoesNotExist:
             pass
@@ -276,8 +285,9 @@ def update_callback(sender, instance, created, **kwargs):
         # If the path-based search didn't work, look for (or create) an existing
         # instance linked to this object.
         if not meta_data:
-            meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.id)
+            meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.pk)
             if not md_created: # handle url change
+                # TODO: Test this block
                 meta_data.path=path
                 meta_data.save()
 
@@ -286,9 +296,10 @@ def update_callback(sender, instance, created, **kwargs):
             meta_data.save(update_related=False)
 
 def delete_callback(sender, instance,  **kwargs):
+    # TODO: Test this function
     content_type = ContentType.objects.get_for_model(instance)
     try:
-        MetaData.objects.get(content_type=content_type, object_id=instance.id).delete()
+        MetaData.objects.get(content_type=content_type, object_id=instance.pk).delete()
     except:
         pass
 

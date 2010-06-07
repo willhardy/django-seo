@@ -13,6 +13,7 @@ class MetaDataForm(forms.ModelForm):
         model = models.MetaData
 
     def clean_extra(self):
+        # TODO: Test this method
         value = self.cleaned_data['extra']
         # Reject if text is found outside tags, as extra will appear in <head>
         if strip_tags(value).strip():
