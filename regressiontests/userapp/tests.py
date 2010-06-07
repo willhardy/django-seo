@@ -117,3 +117,29 @@ class Formatting(TestCase):
                   ' No text outside tags please.')
         self.assertEqual(self.context.extra, exp)
 
+
+class Random(TestCase):
+    """ A collection of random tests for various isolated features. """
+
+    def setUp(self):
+        self.page = Page.objects.create()
+        self.content_type = ContentType.objects.get_for_model(Page)
+        self.meta_data = MetaData.objects.get(content_type=self.content_type,
+                                                    object_id=self.page.id)
+        self.context = self.meta_data.context['seo_meta_data']
+
+    def test_default_fallback(self):
+        """ Tests the ability to use the current Site name as a default 
+            fallback. 
+        """
+        from django.contrib.sites.models import Site
+        site = Site.objects.get_current()
+        self.assertEqual(site.name, self.context.title)
+
+    def test_missing_category_meta_data(self):
+        " Checks that lookups work where the category meta data is  missing "
+        try:
+            self.context.title
+        except MetaData.DoesNotExist:
+            self.fail("MetaData.DoesNotExist raised inappropriately.")
+

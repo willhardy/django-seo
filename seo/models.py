@@ -43,7 +43,7 @@ if not DEFAULT_TITLE and Site._meta.installed:
     def get_current_site_title():
         current_site = Site.objects.get_current()
         return current_site.name or current_site.domain
-    DEFAULT_TITLE = lazy(get_current_site_title, unicode)
+    DEFAULT_TITLE = lazy(get_current_site_title, unicode)()
 
 TEMPLATE = "seo/head.html"
 
@@ -162,7 +162,10 @@ class MetaData(models.Model):
         """
         if self.content_type_id is not None and self.object_id is not None:
             if not hasattr(self, '_category_meta_data'):
-                self._category_meta_data = self.__class__._default_manager.get(content_type__id=self.content_type_id, object_id__isnull=True)
+                try:
+                    self._category_meta_data = self.__class__._default_manager.get(content_type__id=self.content_type_id, object_id__isnull=True)
+                except self.__class__.DoesNotExist:
+                    self._category_meta_data = None
             return self._category_meta_data
 
 
@@ -183,7 +186,7 @@ class TemplateMetaData(dict):
         # If no value is provided by the meta_data object, look for a
         # category or a default
         if not value:
-            value = self._get_category_value(name) or default or None
+            value = self._get_category_value(name) or default or ""
         # If this belongs in a tag, escape quote symbols
         if tag:
             value = value.replace('"', '&#34;')

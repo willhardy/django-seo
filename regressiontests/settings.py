@@ -95,3 +95,4 @@ INSTALLED_APPS = (
 )
 
 SEO_MODELS = ('userapp.Page',)
+COVERAGE_MODULES = ('seo', 'userapp')
