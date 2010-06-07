@@ -18,7 +18,7 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-from seo.utils import get_seo_models, SEO_CONTENT_TYPE_CHOICES
+from seo.utils import get_seo_models, SEO_CONTENT_TYPE_CHOICES, resolve_to_name, SystemViewField
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.conf import settings
@@ -46,6 +46,18 @@ if not DEFAULT_TITLE and Site._meta.installed:
     DEFAULT_TITLE = lazy(get_current_site_title, unicode)()
 
 TEMPLATE = "seo/head.html"
+
+class MetaDataManager(models.Manager):
+    def template_meta_data(self, request):
+        try:
+            meta_data = self.get_query_set().get(path=request.path_info)
+        except MetaData.DoesNotExist:
+            meta_data = MetaData()
+        try:
+            view_meta_data = self.get_query_set().get(view=resolve_to_name(request.path_info))
+        except MetaData.DoesNotExist:
+            view_meta_data = None
+        return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
 
 class MetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
@@ -75,6 +87,9 @@ class MetaData(models.Model):
                                         limit_choices_to=SEO_CONTENT_TYPE_CHOICES)
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
+    view           = SystemViewField(blank=True, null=True, unique=True)
+
+    objects = MetaDataManager()
 
     class Meta:
         ordering = ("path",)
@@ -186,12 +201,19 @@ class TemplateMetaData(dict):
     subheading  = property(lambda s: s._get_value('subheading'))
     extra       = property(lambda s: s._get_value('extra'))
 
+    def __init__(self, meta_data, view_meta_data=None):
+        self._meta_data = meta_data
+        self._view_meta_data = view_meta_data
+        self._category_meta_data = None
+
     def _get_value(self, name, default=None, tag=False):
         """ Retrieves a sensible value and prepares it for display. """
         # Get the raw value from the meta data object
         value = getattr(self._meta_data, name)
-        # If no value is provided by the meta_data object, look for a
-        # category or a default
+        # If no value is found, look in the view meta data
+        if not value and self._view_meta_data is not None:
+            value = getattr(self._view_meta_data, name)
+        # If no value is found, look for a category or a default
         if not value:
             value = self._get_category_value(name) or default or ""
         # If this belongs in a tag, escape quote symbols
@@ -209,12 +231,13 @@ class TemplateMetaData(dict):
             # Substitute variables
             val = val.replace(u"%s", u"%%s")
             # Handle keyword substituion "one two %(name)s three"
-            val = resolve(val,self._meta_data.content_object)
+            val = _resolve(val,self._meta_data.content_object)
         return val
 
-    def __init__(self, meta_data):
-        self._meta_data = meta_data
-        self._category_meta_data = None
+    def resolve(self, context):
+        if self._view_meta_data is not None:
+            for name in ('title', 'keywords', 'description', 'heading', 'subheading', 'extra'):
+                setattr(self._view_meta_data, name, _resolve(getattr(self._view_meta_data, name), context_instance=context))
 
     def __unicode__(self):
         """ String version of this object is the html output. """
@@ -222,7 +245,7 @@ class TemplateMetaData(dict):
         return self._meta_data.html
 
 
-def resolve(value, model_instance=None, context_instance=None):
+def _resolve(value, model_instance=None, context_instance=None):
     """ Resolves any template references in the given value. 
     """
     if context_instance is None:
@@ -232,6 +255,21 @@ def resolve(value, model_instance=None, context_instance=None):
     if "{" in value and context_instance is not None:
         value = Template(value).render(context_instance)
     return value
+
+from django.core import urlresolvers
+from django.conf import settings
+def _get_view_callback(request):
+    urlconf = settings.ROOT_URLCONF
+    urlresolvers.set_urlconf(urlconf)
+    resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
+
+    if hasattr(request, "urlconf"):
+        # Reset url resolver with a custom urlconf.
+        urlconf = request.urlconf
+        urlresolvers.set_urlconf(urlconf)
+        resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
+
+    return resolver.resolve(request.path_info)[0]
 
 
 VALID_HEAD_TAGS = "head title base link meta script".split()

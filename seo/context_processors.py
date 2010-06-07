@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from seo.models import MetaData
+from seo.models import MetaData, CONTEXT_VARIABLE
 
 def seo(request):
     try:
-        meta_data = MetaData.objects.get(path=request.path)
-        return meta_data.context
+        return {CONTEXT_VARIABLE: MetaData.objects.template_meta_data(request)}
     except MetaData.DoesNotExist:
         return MetaData().context
