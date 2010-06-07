@@ -6,5 +6,6 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     url(r'^pages/(\d+)/', 'userapp.views.page_detail', name="userapp_page_detail"),
+    url(r'^projects/(\d+)/', 'userapp.views.page_detail', name="userapp_project_detail"),
     (r'^admin/', include(admin.site.urls)),
 )

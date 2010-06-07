@@ -11,3 +11,16 @@ class Page(models.Model):
 
     def __unicode__(self):
         return self.title or self.content
+
+
+class Product(models.Model):
+    meta_description = models.TextField(default="")
+    meta_keywords    = models.CharField(max_length=255, default="")
+    meta_title       = models.CharField(max_length=255, default="")
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('userapp_project_detail', [self.id], {})
+
+    def __unicode__(self):
+        return self.meta_title

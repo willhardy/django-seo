@@ -62,7 +62,7 @@ class MetaData(models.Model):
 
     # These fields can be manually overridden or populated from the object itself.
     # If there is a conflict the information in the object currently being saved is preserved
-    path        = models.CharField(max_length=255, default="", blank=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
+    path        = models.CharField(max_length=255, blank=True, null=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
     title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
     heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag.")
     subheading  = models.CharField(max_length=511, default="", blank=True, help_text="This is the page subheading, that appears near the &lt;h1&gt; tag.")
@@ -146,12 +146,15 @@ class MetaData(models.Model):
                 self.keywords = striptags(self.content_object.meta_keywords) or self.keywords
             if hasattr(self.content_object, 'meta_title'):
                 self.title = self.content_object.meta_title or self.title
+                self.heading = self.heading or self.content_object.meta_title
 
             # Populate using other, non-meta fields, but never overwrite existing data
             elif hasattr(self.content_object, 'page_title'):
                 self.title = self.title or self.content_object.page_title
+                self.heading = self.heading or self.content_object.page_title
             elif hasattr(self.content_object, 'title'):
                 self.title = self.title or self.content_object.title
+                self.heading = self.heading or self.content_object.title
 
             return True
 

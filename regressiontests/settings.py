@@ -92,7 +92,8 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.admin',
+    'south',
 )
 
-SEO_MODELS = ('userapp.Page',)
+SEO_MODELS = ('userapp',)
 COVERAGE_MODULES = ('seo', 'userapp')

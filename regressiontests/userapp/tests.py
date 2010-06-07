@@ -7,12 +7,78 @@
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from seo.models import MetaData
-from userapp.models import Page
+from userapp.models import Page, Product
 try:
     import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
 
+
+class LinkedObjects(TestCase):
+    """ Checks the flow of data betwee a linked object and its meta data. """
+
+    def setUp(self):
+
+        self.product = Product.objects.create(meta_title="Product Meta Title", 
+                                meta_description="Product Meta Description", 
+                                meta_keywords="Product Meta Keywords")
+        self.product_content_type = ContentType.objects.get_for_model(Product)
+        self.product_meta_data = MetaData.objects.get(content_type=self.product_content_type, object_id=self.product.id)
+
+        self.page = Page.objects.create(title=u"Page Title")
+        self.page_content_type = ContentType.objects.get_for_model(Page)
+        self.page_meta_data = MetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id)
+
+    def test_population(self):
+        """ Checks that the meta data object is populated with the object's data at the beginning. 
+        """
+        self.assertEqual(self.product_meta_data.title, "Product Meta Title")
+        self.assertEqual(self.product_meta_data.description, "Product Meta Description")
+        self.assertEqual(self.product_meta_data.keywords, "Product Meta Keywords")
+        self.assertEqual(self.product_meta_data.heading, "Product Meta Title")
+        self.assertEqual(self.page_meta_data.title, "Page Title")
+        self.assertEqual(self.page_meta_data.heading, "Page Title")
+
+    def test_update(self):
+        """ Checks that the meta data object is populated with the object's data when the object is updated.
+        """
+        # Update the product object
+        self.product.meta_title = "New Product Meta Title"
+        self.product.meta_description = "New Product Meta Description"
+        self.product.meta_keywords = "New Product Meta Keywords"
+        self.product.save()
+
+        # Explicit fields are updated.
+        product_meta_data = MetaData.objects.get(content_type=self.product_content_type, object_id=self.product.id)
+        self.assertEqual(product_meta_data.title, "New Product Meta Title")
+        self.assertEqual(product_meta_data.description, "New Product Meta Description")
+        self.assertEqual(product_meta_data.keywords, "New Product Meta Keywords")
+        self.assertEqual(product_meta_data.heading, "Product Meta Title")
+
+        # Update the page object
+        self.page.title = "New Page Title"
+        self.page.save()
+
+        # Non explicit fields are not updated.
+        page_meta_data = MetaData.objects.get(content_type=self.page_content_type, object_id=self.product.id)
+        self.assertEqual(page_meta_data.title, "Page Title")
+        self.assertEqual(page_meta_data.heading, "Page Title")
+
+    def test_backport(self):
+        """ Checks that changes to the meta data are passed back to 
+            denormalised fields on the object. 
+        """
+        # "meta_title" field is not updated
+        self.product_meta_data.title = "New Product Title"
+        self.product_meta_data.save()
+        product = Product.objects.get(id=self.product.id)
+        self.assertEqual(product.meta_title, "New Product Title")
+
+        # "title" field is not updated
+        self.page_meta_data.title = "New Page Title"
+        self.page_meta_data.save()
+        page = Page.objects.get(id=self.page.id)
+        self.assertEqual(page.title, "Page Title")
 
 class ContentTypes(TestCase):
     """ A set of unit tests that check the usage of content types. """
