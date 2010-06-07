@@ -71,7 +71,7 @@ class MetaData(models.Model):
     extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
 
     # If the generic foreign key is set, populate the above fields from there
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True, editable=False,
+    content_type   = models.ForeignKey(ContentType, null=True, blank=True,
                                         limit_choices_to=SEO_CONTENT_TYPE_CHOICES)
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
@@ -222,12 +222,17 @@ class TemplateMetaData(dict):
         return self._meta_data.html
 
 
-def resolve(value, model_instance):
+def resolve(value, model_instance=None, context_instance=None):
     """ Resolves any template references in the given value. 
     """
-    if "{" in value and model_instance is not None:
-        value = Template(value).render(Context({model_instance._meta.module_name: model_instance}))
+    if context_instance is None:
+        context_instance = Context()
+    if model_instance is not None:
+        context_instance[model_instance._meta.module_name] = model_instance
+    if "{" in value and context_instance is not None:
+        value = Template(value).render(context_instance)
     return value
+
 
 VALID_HEAD_TAGS = "head title base link meta script".split()
 def strip_for_head(value):

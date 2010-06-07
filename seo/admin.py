@@ -50,7 +50,7 @@ class MetaDataAdmin(admin.ModelAdmin):
         }),
         ('Advanced', {
             'classes' : ('collapse',),
-            'fields': ('extra', )
+            'fields': ('extra', 'content_type')
         }),
         )
 
