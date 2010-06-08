@@ -50,8 +50,21 @@ class MetaDataAdmin(admin.ModelAdmin):
         }),
         ('Advanced', {
             'classes' : ('collapse',),
-            'fields': ('extra', 'content_type', 'view')
+            'fields': ('extra', 'content_type', )
+        }),
+        )
+
+class ViewMetaDataAdmin(MetaDataAdmin):
+    list_display = ('view', 'title', 'heading', 'subheading', 'content_type', )
+    fieldsets = (
+        (None, {
+            'fields': ('view', 'title', 'keywords', 'description', 'heading', 'subheading')
+        }),
+        ('Advanced', {
+            'classes' : ('collapse',),
+            'fields': ('extra',)
         }),
         )
 
 admin.site.register(models.MetaData, MetaDataAdmin)
+admin.site.register(models.ViewMetaData, ViewMetaDataAdmin)

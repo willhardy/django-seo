@@ -228,3 +228,9 @@ class SystemViewField(models.CharField):
                 del kwargs[k]
         defaults.update(kwargs)
         return form_class(**defaults)
+
+
+# help south understand our models
+from south.modelsinspector import add_introspection_rules
+add_introspection_rules([], ["^seo\.utils"])
+

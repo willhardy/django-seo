@@ -47,17 +47,17 @@ if not DEFAULT_TITLE and Site._meta.installed:
 
 TEMPLATE = "seo/head.html"
 
-class MetaDataManager(models.Manager):
-    def template_meta_data(self, request):
-        try:
-            meta_data = self.get_query_set().get(path=request.path_info)
-        except MetaData.DoesNotExist:
-            meta_data = MetaData()
-        try:
-            view_meta_data = self.get_query_set().get(view=resolve_to_name(request.path_info))
-        except MetaData.DoesNotExist:
-            view_meta_data = None
-        return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
+def template_meta_data(request):
+    try:
+        meta_data = MetaData.objects.get(path=request.path_info)
+    except MetaData.DoesNotExist:
+        meta_data = MetaData()
+    try:
+        view_meta_data = ViewMetaData.objects.get(view=resolve_to_name(request.path_info))
+    except MetaData.DoesNotExist:
+        view_meta_data = None
+    return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
+
 
 class MetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
@@ -87,9 +87,6 @@ class MetaData(models.Model):
                                         limit_choices_to=SEO_CONTENT_TYPE_CHOICES)
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
-    view           = SystemViewField(blank=True, null=True, unique=True)
-
-    objects = MetaDataManager()
 
     class Meta:
         ordering = ("path",)
@@ -189,6 +186,14 @@ class MetaData(models.Model):
                 except self.__class__.DoesNotExist:
                     self._category_meta_data = None
             return self._category_meta_data
+
+
+class ViewMetaData(MetaData):
+    """ A subclass of meta data that can be found by searching for the view. """
+    view           = SystemViewField(blank=True, null=True, unique=True)
+
+    class Meta:
+        verbose_name_plural = u"view meta data"
 
 
 class TemplateMetaData(dict):
@@ -350,3 +355,5 @@ def delete_callback(sender, instance,  **kwargs):
 for model in get_seo_models():
     models.signals.post_save.connect(update_callback, sender=model)
     models.signals.pre_delete.connect(delete_callback, sender=model)
+
+

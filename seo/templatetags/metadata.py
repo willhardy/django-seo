@@ -4,7 +4,7 @@
 from django import template
 from django.template.context import Context
 from django.template.loader import get_template
-from seo.models import MetaData
+from seo.models import template_meta_data
 
 register = template.Library()
 
@@ -21,7 +21,7 @@ class MetaDataNode(template.Node):
         if not meta_data and not request:
             raise template.TemplateSyntaxError("Need RequestContext or meta_data object as a variable '%s'" % CONTEXT_VARIABLE)
         elif not meta_data and request:
-            meta_data = MetaData.objects.template_meta_data(request)
+            meta_data = template_meta_data(request)
         if meta_data is not None:
             meta_data.resolve(context)
             context[variable_name] = meta_data
