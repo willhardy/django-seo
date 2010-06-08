@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from django import template
+import logging
 from django.template.context import Context
 from django.template.loader import get_template
 from seo.models import template_meta_data
+from django.template import VariableDoesNotExist
 
 register = template.Library()
 
@@ -12,16 +14,27 @@ class MetaDataNode(template.Node):
     def __init__(self, variable_name):
         self.variable_name = variable_name
         self.meta_data = template.Variable(CONTEXT_VARIABLE)
-        self.request = template.Variable('request')
+        self.path = template.Variable('request.META.PATH_INFO')
 
     def render(self, context):
         variable_name = self.variable_name or CONTEXT_VARIABLE
-        meta_data = self.meta_data.resolve(context)
-        request = self.request.resolve(context)
-        if not meta_data and not request:
-            raise template.TemplateSyntaxError("Need RequestContext or meta_data object as a variable '%s'" % CONTEXT_VARIABLE)
-        elif not meta_data and request:
-            meta_data = template_meta_data(request)
+        try:
+            path = self.path.resolve(context)
+        except VariableDoesNotExist:
+            path = None
+
+        try:
+            meta_data = self.meta_data.resolve(context)
+        except VariableDoesNotExist:
+            meta_data = template_meta_data(path)
+            if path is None:
+                msg = ("Need RequestContext with either the "
+                      "'django.core.context_processors.request' or "
+                      "'seo.context_processors.metadata' context processor"
+                      "or a MetaData object as a variable "
+                      "called '%s'" % CONTEXT_VARIABLE)
+                logging.warning(msg)
+
         if meta_data is not None:
             meta_data.resolve(context)
             context[variable_name] = meta_data

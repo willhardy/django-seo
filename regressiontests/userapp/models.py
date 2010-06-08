@@ -7,7 +7,7 @@ class Page(models.Model):
 
     @models.permalink
     def get_absolute_url(self):
-        return ('userapp_page_detail', [self.id], {})
+        return ('userapp_page_detail', [self.type], {})
 
     def __unicode__(self):
         return self.title or self.content
@@ -24,3 +24,15 @@ class Product(models.Model):
 
     def __unicode__(self):
         return self.meta_title
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=255, default="M Category Name")
+    page_title = models.CharField(max_length=255, default="M Category Page Title")
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('userapp_my_view', ["abc"], {})
+
+class NoPath(models.Model):
+    pass

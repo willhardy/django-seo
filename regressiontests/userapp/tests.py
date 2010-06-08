@@ -6,8 +6,8 @@
 
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
-from seo.models import MetaData
-from userapp.models import Page, Product
+from seo.models import MetaData, ViewMetaData
+from userapp.models import Page, Product, Category, NoPath
 try:
     import BeautifulSoup
 except ImportError:
@@ -25,9 +25,13 @@ class LinkedObjects(TestCase):
         self.product_content_type = ContentType.objects.get_for_model(Product)
         self.product_meta_data = MetaData.objects.get(content_type=self.product_content_type, object_id=self.product.id)
 
-        self.page = Page.objects.create(title=u"Page Title")
+        self.page = Page.objects.create(title=u"Page Title", type="abc")
         self.page_content_type = ContentType.objects.get_for_model(Page)
         self.page_meta_data = MetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id)
+
+        self.category = Category.objects.create()
+        self.category_content_type = ContentType.objects.get_for_model(Category)
+        self.category_meta_data = MetaData.objects.get(content_type=self.category_content_type, object_id=self.category.id)
 
     def test_population(self):
         """ Checks that the meta data object is populated with the object's data at the beginning. 
@@ -38,6 +42,7 @@ class LinkedObjects(TestCase):
         self.assertEqual(self.product_meta_data.heading, "Product Meta Title")
         self.assertEqual(self.page_meta_data.title, "Page Title")
         self.assertEqual(self.page_meta_data.heading, "Page Title")
+        self.assertEqual(self.category_meta_data.title, "M Category Page Title")
 
     def test_update(self):
         """ Checks that the meta data object is populated with the object's data when the object is updated.
@@ -99,12 +104,69 @@ class LinkedObjects(TestCase):
         self.assertEqual(meta_data.keywords, "Old Keywords")
         self.assertEqual(meta_data.object_id, 2)
 
+    def test_chaos(self):
+        """ Check the crazy scenario where an existing meta data object has the same path. """
+        self.product_meta_data.path = '/products/2/'
+        self.product_meta_data.save()
+        self.assertEqual(self.product_meta_data.object_id, 1)
+        product = Product.objects.create(meta_title="New Title")
+        # This test will not work if we have the id wrong
+        if product.id != 2:
+            raise Exception("Test Error: the product ID is not as expected, this test cannot work.")
+        product_meta_data = MetaData.objects.get(id=self.product_meta_data.id)
+        meta_data = MetaData.objects.get(path="/products/2/")
+        self.assertEqual(meta_data.title, u"New Title")
+        self.assertEqual(meta_data.keywords, u"")
+        self.assertEqual(meta_data.object_id, 2)
+
+    def test_useful_error_messages(self):
+        """ Tests that the system gracefully handles a developer error 
+            (eg exception in get_absolute_url).
+        """
+        from django.core.urlresolvers import NoReverseMatch
+        try:
+            self.page.type = "a type with spaces!" # this causes get_absolute_url() to fail
+            self.page.save()
+            self.fail("No exception raised on developer error.")
+        except NoReverseMatch:
+            pass
+
+    def test_missing_meta(self):
+        """ Check that no exceptions are raised when the meta data object is missing. """
+        try:
+            self.page_meta_data.delete()
+            self.page.title = "A New Page Title"
+            self.page.save()
+            MetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id).delete()
+            self.page.type = "a-new-type"
+            self.page.save()
+            MetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id).delete()
+            self.page.delete()
+        except Exception, e:
+            self.fail("Exception raised inappropriately: %r" % e)
+
+    def test_path_change(self):
+        """ Check the ability to change the path of meta data. """
+        self.page.type = "new-type"
+        self.page.save()
+        meta_data_1 = MetaData.objects.get(path=self.page.get_absolute_url())
+        meta_data_2 = MetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id)
+        self.assertEqual(meta_data_1.id, meta_data_2.id)
+
+    def test_delete_object(self):
+        """ Tests that an object can be deleted, and the meta data is deleted with it. """
+        num_meta_data = MetaData.objects.all().count()
+        old_path = self.page.get_absolute_url()
+        self.page.delete()
+        self.assertEqual(MetaData.objects.all().count(), num_meta_data - 1)
+        self.assertEqual(MetaData.objects.filter(path=old_path).count(), 0)
+
 class ContentTypes(TestCase):
     """ A set of unit tests that check the usage of content types. """
 
     def setUp(self):
-        self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page one type", content=u"Page one content.")
-        self.page2 = Page.objects.create(type=u"page two type", content=u"Page two content.")
+        self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page-one-type", content=u"Page one content.")
+        self.page2 = Page.objects.create(type=u"page-two-type", content=u"Page two content.")
 
         content_type = ContentType.objects.get_for_model(Page)
 
@@ -119,8 +181,8 @@ class ContentTypes(TestCase):
         self.category_meta_data.description = u"CMD Description for {{ page }} and {{ page }}"
         self.category_meta_data.save()
 
-        self.context1 = self.meta_data1.context['seo_meta_data']
-        self.context2 = self.meta_data2.context['seo_meta_data']
+        self.context1 = self.meta_data1.formatted
+        self.context2 = self.meta_data2.formatted
 
     def test_direct_data(self):
         """ Check data is used directly when it is given. """
@@ -135,9 +197,46 @@ class ContentTypes(TestCase):
 
     def test_category_substitution(self):
         """ Check that category data is substituted correctly """
-        self.assertEqual(self.context2.keywords, u'CMD Keywords, page two type, more keywords')
+        self.assertEqual(self.context2.keywords, u'CMD Keywords, page-two-type, more keywords')
         self.assertEqual(self.context1.description, u'CMD Description for MD Page One Title and MD Page One Title')
         self.assertEqual(self.context2.description, u'CMD Description for Page two content. and Page two content.')
+
+
+from django.core.urlresolvers import reverse
+
+class ViewBasedMetaData(TestCase):
+    """ A set of unit tests to check the operateion of view selected meta data. """
+
+    def setUp(self):
+        self.meta_data = ViewMetaData.objects.create(view="userapp_my_view")
+        self.meta_data.title = "MD {{ text }} Title"
+        self.meta_data.keywords = "MD {{ text }} Keywords"
+        self.meta_data.description = "MD {{ text }} Description"
+        self.meta_data.save()
+
+    def test_substitution(self):
+        response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
+        self.assertContains(response, u'<title>MD abc123 Title</title>')
+        self.assertContains(response, u'<meta name="keywords" content="MD abc123 Keywords" />')
+        self.assertContains(response, u'<meta name="description" content="MD abc123 Description" />')
+
+    def test_not_request_context(self):
+        """ Tests the view meta data on a view that is not a request context. """
+        self.meta_data.view = "userapp_my_other_view"
+        self.meta_data.save()
+        response = self.client.get(reverse('userapp_my_other_view', args=["abc123"]))
+        self.assertContains(response, u'<title>example.com</title>')
+        self.assertContains(response, u'<meta name="keywords" content="" />')
+        self.assertContains(response, u'<meta name="description" content="" />')
+
+    def test_bad_or_old_view(self):
+        self.meta_data.view = "this_view_does_not_exist"
+        self.meta_data.save()
+        response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
+        self.assertContains(response, u'<title>example.com</title>')
+        self.assertContains(response, u'<meta name="keywords" content="" />')
+        self.assertContains(response, u'<meta name="description" content="" />')
+
 
 class Formatting(TestCase):
     """ A set of simple unit tests that check formatting. """
@@ -152,20 +251,20 @@ class Formatting(TestCase):
                               'No text outside tags please.')
         self.meta_data.save()
 
-        self.context = self.meta_data.context['seo_meta_data']
+        self.context = self.meta_data.formatted
     
     def test_html(self):
         """ Tests html generation is performed correctly.
             Thorough cleaning is done when BeautifulSoup is available.
         """
         if BeautifulSoup:
-            assert self.meta_data.html == """<title>The <strong>Title</strong></title>
+            assert self.meta_data.formatted.html == """<title>The <strong>Title</strong></title>
 <meta name="keywords" content="Some, keywords&#34;, with,  other, chars'" />
 <meta name="description" content="A   description with &#34; interesting' chars." />
 <meta name="author" content="seo" />
 """, "Incorrect html:\n" + self.meta_data.html
         else:
-            assert self.meta_data.html == """<title>The <strong>Title</strong></title>
+            assert self.meta_data.formatted.html == """<title>The <strong>Title</strong></title>
 <meta name="keywords" content="Some, keywords&#34;, with,  other, chars'" />
 <meta name="description" content="A   description with &#34; interesting' chars." />
 <meta name="author" content="seo" /><hr /> No text outside tags please.
@@ -207,11 +306,11 @@ class Random(TestCase):
     """ A collection of random tests for various isolated features. """
 
     def setUp(self):
-        self.page = Page.objects.create()
+        self.page = Page.objects.create(type="abc")
         self.content_type = ContentType.objects.get_for_model(Page)
         self.meta_data = MetaData.objects.get(content_type=self.content_type,
                                                     object_id=self.page.id)
-        self.context = self.meta_data.context['seo_meta_data']
+        self.context = self.meta_data.formatted
 
     def test_default_fallback(self):
         """ Tests the ability to use the current Site name as a default 
@@ -228,3 +327,23 @@ class Random(TestCase):
         except MetaData.DoesNotExist:
             self.fail("MetaData.DoesNotExist raised inappropriately.")
 
+    def test_unicode_representation(self):
+        " Checks the unicode representation of a MetaData object. "
+        self.page.title = "How to recognise this page"
+        self.page.save()
+        meta_data = MetaData.objects.get(id=self.meta_data.id)
+        self.assertEqual(unicode(meta_data), self.page.title)
+
+    def test_get_absolute_url(self):
+        " Checks the get_absolute_url() method of a MetaData object. "
+        self.assertEqual(self.meta_data.get_absolute_url(), self.page.get_absolute_url())
+
+    def test_missing_path(self):
+        " Checks that a model with a missing path is gracefully ignored. "
+        num_meta_data = MetaData.objects.all().count()
+        try:
+            no_path = NoPath.objects.create()
+        except Exception, e:
+            self.fail("Exception inappropriately raised: %r" % e)
+        new_num_meta_data = MetaData.objects.all().count()
+        self.assertEqual(num_meta_data, new_num_meta_data)

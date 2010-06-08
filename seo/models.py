@@ -47,15 +47,19 @@ if not DEFAULT_TITLE and Site._meta.installed:
 
 TEMPLATE = "seo/head.html"
 
-def template_meta_data(request):
-    try:
-        meta_data = MetaData.objects.get(path=request.path_info)
-    except MetaData.DoesNotExist:
+def template_meta_data(path=None):
+    if path is None:
         meta_data = MetaData()
-    try:
-        view_meta_data = ViewMetaData.objects.get(view=resolve_to_name(request.path_info))
-    except MetaData.DoesNotExist:
         view_meta_data = None
+    else:
+        try:
+            meta_data = MetaData.objects.get(path=path)
+        except MetaData.DoesNotExist:
+            meta_data = MetaData()
+        try:
+            view_meta_data = ViewMetaData.objects.get(view=resolve_to_name(path))
+        except MetaData.DoesNotExist:
+            view_meta_data = None
     return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
 
 
@@ -94,13 +98,11 @@ class MetaData(models.Model):
         verbose_name_plural = u"metadata"
 
     def get_absolute_url(self):
-        # TODO: Test this method
         if self.path:
             return self.path
 
     def __unicode__(self):
-        # TODO: Test this method
-        return self.path or "(%s)" % self.title
+        return self.title or self.heading or self.description or "(blank: %s)" % self.path
 
     def save(self, update_related=True, *args, **kwargs):
         self.keywords = ", ".join(self.keywords.strip().splitlines())
@@ -109,20 +111,6 @@ class MetaData(models.Model):
         super(MetaData, self).save(*args, **kwargs)
         if update_related:
             self.update_related_object()
-
-    @property
-    def html(self):
-        """ Return an html representation of this meta data suitable
-            for inclusion in <head>. 
-            Note:
-              * 'heading' and 'subheading' should not be included.
-              * Be careful not to try to get the full html inside this template.
-        """
-        return mark_safe(render_to_string(TEMPLATE, self.context))
-
-    @property
-    def context(self):
-        return {CONTEXT_VARIABLE: TemplateMetaData(self)}
 
     def update_related_object(self):
         """ Helps ensure that denormalised data is synchronised. 
@@ -165,7 +153,6 @@ class MetaData(models.Model):
 
             # Populate using other, non-meta fields, but never overwrite existing data
             elif hasattr(self.content_object, 'page_title'):
-                # TODO: Test this block
                 self.title = self.title or self.content_object.page_title
                 self.heading = self.heading or self.content_object.page_title
             elif hasattr(self.content_object, 'title'):
@@ -186,6 +173,10 @@ class MetaData(models.Model):
                 except self.__class__.DoesNotExist:
                     self._category_meta_data = None
             return self._category_meta_data
+
+    @property
+    def formatted(self):
+        return TemplateMetaData(self)
 
 
 class ViewMetaData(MetaData):
@@ -244,10 +235,23 @@ class TemplateMetaData(dict):
             for name in ('title', 'keywords', 'description', 'heading', 'subheading', 'extra'):
                 setattr(self._view_meta_data, name, _resolve(getattr(self._view_meta_data, name), context_instance=context))
 
+    @property
+    def html(self):
+        """ Return an html representation of this meta data suitable
+            for inclusion in <head>. 
+            Note:
+              * 'heading' and 'subheading' should not be included.
+              * Be careful not to try to get the full html inside this template.
+        """
+        return mark_safe(render_to_string(TEMPLATE, self.context))
+
+    @property
+    def context(self):
+        return {CONTEXT_VARIABLE: self}
+
     def __unicode__(self):
         """ String version of this object is the html output. """
-        # TODO: Test this method
-        return self._meta_data.html
+        return self.html
 
 
 def _resolve(value, model_instance=None, context_instance=None):
@@ -261,20 +265,20 @@ def _resolve(value, model_instance=None, context_instance=None):
         value = Template(value).render(context_instance)
     return value
 
-from django.core import urlresolvers
-from django.conf import settings
-def _get_view_callback(request):
-    urlconf = settings.ROOT_URLCONF
-    urlresolvers.set_urlconf(urlconf)
-    resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
-
-    if hasattr(request, "urlconf"):
-        # Reset url resolver with a custom urlconf.
-        urlconf = request.urlconf
-        urlresolvers.set_urlconf(urlconf)
-        resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
-
-    return resolver.resolve(request.path_info)[0]
+#from django.core import urlresolvers
+#from django.conf import settings
+#def _get_view_callback(request):
+#    urlconf = settings.ROOT_URLCONF
+#    urlresolvers.set_urlconf(urlconf)
+#    resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
+#
+#    if hasattr(request, "urlconf"):
+#        # Reset url resolver with a custom urlconf.
+#        urlconf = request.urlconf
+#        urlresolvers.set_urlconf(urlconf)
+#        resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
+#
+#    return resolver.resolve(request.path_info)[0]
 
 
 VALID_HEAD_TAGS = "head title base link meta script".split()
@@ -285,7 +289,6 @@ def strip_for_head(value):
     """
     if BeautifulSoup is None:
         return value
-    # TODO: Test this block
     soup = BeautifulSoup(value)
     [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
     return str(soup)
@@ -322,7 +325,6 @@ def update_callback(sender, instance, created, **kwargs):
             # It's harsh, but we need a unique path and will assume the other
             # link is outdated.
             elif meta_data.content_type != content_type or meta_data.object_id != instance.pk:
-                # TODO: Test this block
                 meta_data.path = None
                 meta_data.save()
                 # Move on, this meta_data instance isn't for us
@@ -335,7 +337,6 @@ def update_callback(sender, instance, created, **kwargs):
         if not meta_data:
             meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.pk)
             if not md_created: # handle url change
-                # TODO: Test this block
                 meta_data.path=path
                 meta_data.save()
 
@@ -344,7 +345,6 @@ def update_callback(sender, instance, created, **kwargs):
             meta_data.save(update_related=False)
 
 def delete_callback(sender, instance,  **kwargs):
-    # TODO: Test this function
     content_type = ContentType.objects.get_for_model(instance)
     try:
         MetaData.objects.get(content_type=content_type, object_id=instance.pk).delete()
