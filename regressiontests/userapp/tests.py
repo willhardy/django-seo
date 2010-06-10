@@ -347,3 +347,31 @@ class Random(TestCase):
             self.fail("Exception inappropriately raised: %r" % e)
         new_num_meta_data = MetaData.objects.all().count()
         self.assertEqual(num_meta_data, new_num_meta_data)
+
+    def test_contenttypes_admin(self):
+        """ Checks the custom field for the ViewMetaData admin works correctly. """
+        from seo.admin import MetaDataAdmin
+        from django.http import HttpRequest
+        from django.contrib.admin import site
+        request = HttpRequest()
+        form = MetaDataAdmin(MetaData, site).get_form(request)()
+        assert 'site</option>' not in form.as_table(), form.as_table()
+
+    def test_view_admin(self):
+        """ Checks the custom field for the ViewMetaData admin works correctly. """
+        from seo.admin import ViewMetaDataAdmin
+        from django.http import HttpRequest
+        from django.contrib.admin import site
+        request = HttpRequest()
+        form = ViewMetaDataAdmin(ViewMetaData, site).get_form(request)()
+        assert '<option value="userapp_my_view">userapp my view</option>' in form.as_table(), form.as_table()
+
+    def test_clean_extra(self):
+        """ Checks that extra head data is cleaned. """
+        from seo.admin import MetaDataForm
+        extra = u"<title>My Title</title><link/>And them some<link/>"
+        form = MetaDataForm(instance=self.meta_data, data={'extra': extra })
+        assert not form.is_valid(), "Form should be rejected."
+
+    def test_seo_content_types(self):
+        """ Checks the creation of choices for the SEO content types. """

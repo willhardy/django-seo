@@ -21,7 +21,7 @@ class Migration(SchemaMigration):
         db.alter_column('seo_metadata', 'object_id', self.gf('models.PositiveIntegerField')(null=True, editable=False, blank=True))
 
         # Changing field 'MetaData.content_type'
-        db.alter_column('seo_metadata', 'content_type_id', self.gf('models.ForeignKey')(orm['contenttypes.ContentType'], limit_choices_to=SEO_CONTENT_TYPE_CHOICES, null=True, editable=False, blank=True))
+        db.alter_column('seo_metadata', 'content_type_id', self.gf('models.ForeignKey')(orm['contenttypes.ContentType'], null=True, editable=False, blank=True))
 
 
     models = {

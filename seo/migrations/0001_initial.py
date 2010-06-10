@@ -18,7 +18,7 @@ class Migration:
             ('keywords', models.TextField(default='', blank=True)),
             ('description', models.TextField(default='', blank=True)),
             ('extra', models.TextField(default='', blank=True)),
-            ('content_type', models.ForeignKey(orm['contenttypes.ContentType'], limit_choices_to=SEO_CONTENT_TYPE_CHOICES, null=True, editable=False, blank=True)),
+            ('content_type', models.ForeignKey(orm['contenttypes.ContentType'], null=True, editable=False, blank=True)),
             ('object_id', models.PositiveIntegerField(null=True, editable=False, blank=True)),
         ))
         db.send_create_signal('seo', ['MetaData'])
@@ -40,7 +40,7 @@ class Migration:
         },
         'seo.metadata': {
             'Meta': {'ordering': '("path",)'},
-            'content_type': ('models.ForeignKey', ["orm['contenttypes.ContentType']"], {'limit_choices_to': 'SEO_CONTENT_TYPE_CHOICES', 'null': 'True', 'editable': 'False', 'blank': 'True'}),
+            'content_type': ('models.ForeignKey', ["orm['contenttypes.ContentType']"], {'null': 'True', 'editable': 'False', 'blank': 'True'}),
             'description': ('models.TextField', [], {'default': "''", 'blank': 'True'}),
             'extra': ('models.TextField', [], {'default': "''", 'blank': 'True'}),
             'heading': ('models.CharField', [], {'default': "''", 'max_length': '511', 'blank': 'True'}),

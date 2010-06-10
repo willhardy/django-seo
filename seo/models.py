@@ -18,7 +18,9 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-from seo.utils import get_seo_models, SEO_CONTENT_TYPE_CHOICES, resolve_to_name, SystemViewField
+from seo.utils import get_seo_models, resolve_to_name
+from seo.modelmetadata import get_seo_content_types
+from seo.viewmetadata import SystemViewField
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.conf import settings
@@ -88,7 +90,7 @@ class MetaData(models.Model):
 
     # If the generic foreign key is set, populate the above fields from there
     content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to=SEO_CONTENT_TYPE_CHOICES)
+                                        limit_choices_to={'id__in': get_seo_content_types()})
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 

@@ -11,7 +11,7 @@ class Migration(SchemaMigration):
         # Adding model 'ViewMetaData'
         db.create_table('seo_viewmetadata', (
             ('metadata_ptr', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['seo.MetaData'], unique=True, primary_key=True)),
-            ('view', self.gf('seo.utils.SystemViewField')(max_length=255, unique=True, null=True, blank=True)),
+            ('view', self.gf('seo.viewmetadata.SystemViewField')(max_length=255, unique=True, null=True, blank=True)),
         ))
         db.send_create_signal('seo', ['ViewMetaData'])
 
@@ -52,7 +52,7 @@ class Migration(SchemaMigration):
         'seo.viewmetadata': {
             'Meta': {'object_name': 'ViewMetaData', '_ormbases': ['seo.MetaData']},
             'metadata_ptr': ('django.db.models.fields.related.OneToOneField', [], {'to': "orm['seo.MetaData']", 'unique': 'True', 'primary_key': 'True'}),
-            'view': ('seo.utils.SystemViewField', [], {'max_length': '255', 'unique': 'True', 'null': 'True', 'blank': 'True'})
+            'view': ('seo.viewmetadata.SystemViewField', [], {'max_length': '255', 'unique': 'True', 'null': 'True', 'blank': 'True'})
         }
     }
 
