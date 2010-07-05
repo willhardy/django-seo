@@ -18,6 +18,7 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.core.urlresolvers import Resolver404
 from seo.utils import get_seo_models, resolve_to_name
 from seo.modelmetadata import get_seo_content_types
 from seo.viewmetadata import SystemViewField
@@ -60,8 +61,9 @@ def template_meta_data(path=None):
             meta_data = MetaData()
         try:
             view_meta_data = ViewMetaData.objects.get(view=resolve_to_name(path))
-        except MetaData.DoesNotExist:
+        except (MetaData.DoesNotExist, Resolver404):
             view_meta_data = None
+            
     return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
 
 
