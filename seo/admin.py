@@ -55,7 +55,7 @@ class MetaDataAdmin(admin.ModelAdmin):
         )
 
 class ViewMetaDataAdmin(MetaDataAdmin):
-    list_display = ('view', 'title', 'heading', 'subheading', 'content_type', )
+    list_display = ('view', 'title', 'heading', 'subheading', )
     fieldsets = (
         (None, {
             'fields': ('view', 'title', 'keywords', 'description', 'heading', 'subheading')
