@@ -55,7 +55,7 @@ class MetaDataAdmin(admin.ModelAdmin):
         )
 
     def queryset(self, request):
-        super(MetaDataAdmin, self).queryset(request).filter(path__isnull=False)
+        return self.model._default_manager.get_query_set().filter(path__isnull=False)
 
 class ViewMetaDataAdmin(MetaDataAdmin):
     list_display = ('view', 'title', 'heading', 'subheading', )
