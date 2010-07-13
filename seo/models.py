@@ -188,8 +188,8 @@ class ViewMetaData(MetaData):
     view           = SystemViewField(blank=True, null=True, unique=True)
 
     class Meta:
-        verbose_name = u"view metadata"
-        verbose_name_plural = u"view metadata"
+        verbose_name = u"view-based metadata"
+        verbose_name_plural = u"view-based metadata"
 
 
 class TemplateMetaData(dict):
