@@ -69,5 +69,8 @@ class ViewMetaDataAdmin(MetaDataAdmin):
         }),
         )
 
+    def queryset(self, request):
+        return self.model._default_manager.get_query_set()
+
 admin.site.register(models.MetaData, MetaDataAdmin)
 admin.site.register(models.ViewMetaData, ViewMetaDataAdmin)
