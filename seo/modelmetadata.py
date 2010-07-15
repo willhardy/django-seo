@@ -60,5 +60,8 @@ class SEOContentTypeField(models.ForeignKey):
 
 
 # help south understand our models
-from south.modelsinspector import add_introspection_rules
-add_introspection_rules([], ["^seo\.fields"])
+try:
+    from south.modelsinspector import add_introspection_rules
+    add_introspection_rules([], ["^seo\.fields"])
+except ImportError:
+    pass
