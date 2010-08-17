@@ -92,7 +92,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     "django.contrib.messages.context_processors.messages",
     )
 
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     'seo',
     'userapp',
     'django.contrib.auth',
@@ -102,8 +102,15 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.admin',
     'django.contrib.flatpages',
-    'south',
-)
+]
+
+# If south is available, add it
+try:
+    import south
+    ISNTALLED_APPS.append('south')
+except ImportError:
+    pass
+
 
 SEO_MODELS = ('userapp',)
 COVERAGE_MODULES = ('seo', 'userapp', 'flatpages.FlatPage')
