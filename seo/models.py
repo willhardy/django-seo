@@ -64,7 +64,7 @@ def template_meta_data(path=None):
         except (MetaData.DoesNotExist, Resolver404):
             view_meta_data = None
             
-    return TemplateMetaData(meta_data, view_meta_data=view_meta_data)
+    return FormattedMetaData(meta_data, view_meta_data=view_meta_data)
 
 
 class MetaData(models.Model):
@@ -180,7 +180,7 @@ class MetaData(models.Model):
 
     @property
     def formatted(self):
-        return TemplateMetaData(self)
+        return FormattedMetaData(self)
 
 
 class ViewMetaData(MetaData):
@@ -192,7 +192,7 @@ class ViewMetaData(MetaData):
         verbose_name_plural = u"view-based metadata"
 
 
-class TemplateMetaData(dict):
+class FormattedMetaData(dict):
     """ Class to make template access to meta data more convienient.
     """
     title       = property(lambda s: s._get_value('title', DEFAULT_TITLE))
