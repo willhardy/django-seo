@@ -19,9 +19,6 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.core.urlresolvers import Resolver404
-from seo.utils import get_seo_models, resolve_to_name
-from seo.modelmetadata import get_seo_content_types
-from seo.viewmetadata import SystemViewField
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.conf import settings
@@ -33,6 +30,10 @@ try:
     from BeautifulSoup import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
+
+from seo.utils import get_seo_models, resolve_to_name
+from seo.modelmetadata import get_seo_content_types
+from seo.viewmetadata import SystemViewField
 
 # TODO: Document the use of these
 DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", "")
