@@ -341,9 +341,8 @@ def update_callback(sender, instance, created, **kwargs):
         # instance linked to this object.
         if not meta_data:
             meta_data, md_created = MetaData.objects.get_or_create(content_type=content_type, object_id=instance.pk)
-            if not md_created: # handle url change
-                meta_data.path=path
-                meta_data.save()
+            meta_data.path=path
+            meta_data.save()
 
         # Update the MetaData instance with data from the object
         if meta_data.update_from_related_object():
