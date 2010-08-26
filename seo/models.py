@@ -21,11 +21,8 @@ from django.contrib.contenttypes import generic
 from django.core.urlresolvers import Resolver404
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
-from django.conf import settings
 from django.template.loader import render_to_string
-from django.contrib.sites.models import Site
 from django.template import Template, Context
-from django.utils.functional import lazy
 try:
     from BeautifulSoup import BeautifulSoup
 except ImportError:
@@ -34,22 +31,7 @@ except ImportError:
 from seo.utils import get_seo_models, resolve_to_name
 from seo.modelmetadata import get_seo_content_types
 from seo.viewmetadata import SystemViewField
-
-# TODO: Document the use of these
-DEFAULT_TITLE       = getattr(settings, "SEO_DEFAULT_TITLE", "")
-DEFAULT_KEYWORDS    = getattr(settings, "SEO_DEFAULT_KEYWORDS", "")
-DEFAULT_DESCRIPTION = getattr(settings, "SEO_DEFAULT_DESCRIPTION", "")
-CONTEXT_VARIABLE    = getattr(settings, "SEO_CONTEXT_VARIABLE", 'seo_meta_data')
-
-if not DEFAULT_TITLE and Site._meta.installed:
-    # Because we are in models.py, the Site information 
-    # wont be available until the tables have been created
-    def get_current_site_title():
-        current_site = Site.objects.get_current()
-        return current_site.name or current_site.domain
-    DEFAULT_TITLE = lazy(get_current_site_title, unicode)()
-
-TEMPLATE = "seo/head.html"
+from seo import settings
 
 def template_meta_data(path=None):
     if path is None:
@@ -196,9 +178,9 @@ class ViewMetaData(MetaData):
 class FormattedMetaData(dict):
     """ Class to make template access to meta data more convienient.
     """
-    title       = property(lambda s: s._get_value('title', DEFAULT_TITLE))
-    keywords    = property(lambda s: s._get_value('keywords', DEFAULT_KEYWORDS, tag=True))
-    description = property(lambda s: s._get_value('description', DEFAULT_DESCRIPTION, tag=True))
+    title       = property(lambda s: s._get_value('title', settings.DEFAULT_TITLE))
+    keywords    = property(lambda s: s._get_value('keywords', settings.DEFAULT_KEYWORDS, tag=True))
+    description = property(lambda s: s._get_value('description', settings.DEFAULT_DESCRIPTION, tag=True))
     heading     = property(lambda s: s._get_value('heading'))
     subheading  = property(lambda s: s._get_value('subheading'))
     extra       = property(lambda s: s._get_value('extra'))
@@ -249,11 +231,11 @@ class FormattedMetaData(dict):
               * 'heading' and 'subheading' should not be included.
               * Be careful not to try to get the full html inside this template.
         """
-        return mark_safe(render_to_string(TEMPLATE, self.context))
+        return mark_safe(render_to_string(settings.TEMPLATE, self.context))
 
     @property
     def context(self):
-        return {CONTEXT_VARIABLE: self}
+        return {settings.CONTEXT_VARIABLE: self}
 
     def __unicode__(self):
         """ String version of this object is the html output. """
