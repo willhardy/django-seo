@@ -122,5 +122,8 @@ def _resolver_resolve_to_name(resolver, path):
         raise Resolver404, {'tried': tried, 'path': new_path}
 
 def resolve_to_name(path, urlconf=None):
-    return _resolver_resolve_to_name(get_resolver(urlconf), path)
+    try:
+        return _resolver_resolve_to_name(get_resolver(urlconf), path)
+    except Resolver404:
+        return None
 

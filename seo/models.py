@@ -18,7 +18,6 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
-from django.core.urlresolvers import Resolver404
 from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
@@ -34,18 +33,22 @@ from seo.viewmetadata import SystemViewField
 from seo import settings
 
 def template_meta_data(path=None):
+    view_meta_data = None
+
     if path is None:
         meta_data = MetaData()
-        view_meta_data = None
     else:
         try:
             meta_data = MetaData.objects.get(path=path)
         except MetaData.DoesNotExist:
             meta_data = MetaData()
-        try:
-            view_meta_data = ViewMetaData.objects.get(view=resolve_to_name(path))
-        except (MetaData.DoesNotExist, Resolver404):
-            view_meta_data = None
+
+        view_name = resolve_to_name(path)
+        if view_name is not None:
+            try:
+                view_meta_data = ViewMetaData.objects.get(view=view_name)
+            except (MetaData.DoesNotExist, ):
+                pass
             
     return FormattedMetaData(meta_data, view_meta_data=view_meta_data)
 
