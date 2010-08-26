@@ -7,6 +7,7 @@ from django.template.context import Context
 from django.template.loader import get_template
 from seo.models import template_meta_data
 from django.template import VariableDoesNotExist
+from seo.settings import CONTEXT_VARIABLE
 
 register = template.Library()
 
@@ -42,7 +43,6 @@ class MetaDataNode(template.Node):
         return ""
 
 
-from seo.models import CONTEXT_VARIABLE
 
 def do_get_metadata(parser, token):
     """
