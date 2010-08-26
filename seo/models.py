@@ -30,6 +30,7 @@ from seo import settings
 
 def template_meta_data(path=None):
     """ Returns a formatted meta data object for the given path. """
+    # TODO: Move away, take request as an argument?
     view_meta_data = None
 
     if path is None:
