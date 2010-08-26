@@ -1,0 +1,10 @@
+.. _topics-index:
+
+Topical guides
+==============
+
+.. toctree::
+   :maxdepth: 1
+
+   best-practices
+    

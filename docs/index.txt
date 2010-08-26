@@ -1,0 +1,31 @@
+========================
+Django SEO Documentation
+========================
+
+Django SEO is a Django based framework, allowing you to manage SEO (Search Engine Optimisation) metadata.
+
+First steps
+===========
+
+- :ref:`Background <introduction-background>`
+- :ref:`Installation <introduction-install>`
+- :ref:`Tutorial <introduction-tutorial>`
+
+Reference
+=========
+
+
+More information
+================
+
+- :ref:`Best practice <topics-best-practices>`
+- :ref:`Django SEO contributors' guide <reference-developers>`
+
+Indices and tables
+==================
+
+- :ref:`contents`
+- :ref:`genindex`
+- :ref:`modindex`
+- :ref:`search`
+

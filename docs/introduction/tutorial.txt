@@ -1,0 +1,6 @@
+.. _introduction-tutorial:
+
+=============================
+Django SEO Framework Tutorial
+=============================
+

@@ -1,0 +1,23 @@
+.. _topics-best-practices:
+
+================================
+SEO with Django - Best Practices
+================================
+
+The following information is not specific to this Django SEO framework, but rather use of SEO with Django in general. 
+
+Essential knowledge
+===================
+
+Some problems are universal and need to be considered by developers. 
+
+Cleaning admin input
+--------------------
+
+Admin users are most often not developers and it is not their job to ensure that their work does not break the website.
+If admin users are composing SEO information that appears verbatim on every page of the site (like some meta data might),
+it should be cleaned of tags that have the potential to break things. 
+
+Similarly, a higher level of character escaping is required for (META) tag attributes like ``keywords`` and ``description``.
+
+Django SEO sanitises meta data that is included verbatim, and escapes characters that are included as tag attributes.

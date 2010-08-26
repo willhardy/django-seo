@@ -1,0 +1,18 @@
+.. _introduction-background:
+
+=====================
+Welcome to Django SEO
+=====================
+
+Design
+------
+
+Django SEO is a library that allows you to attach metadata to:
+
+- Model instances
+- Views
+
+What's next?
+------------
+
+You might like to read the :ref:`Quick install guide <introduction-install>` or start reading through the :ref:`tutorial <introduction-tutorial>`.

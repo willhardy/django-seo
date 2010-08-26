@@ -1,0 +1,36 @@
+.. _introduction-install:
+
+Quick install guide
+===================
+
+The easiest way to install Django SEO is to use use ``pip``, if you have it:
+
+    pip install django-seo
+
+If you don't, and you prefer the old school ``easy_install``, then the following command is for you:
+
+    easy_install django-seo
+
+Not So Quick install
+--------------------
+
+If you don't have ``easy_install`` or ``pip`` installed, you will need to do things manually. 
+Firstly, install Django by following the installation instructions at http://docs.djangoproject.com/en/dev/intro/install/.  
+
+Next download the Django SEO release from http://github.com/willhardy/django-seo. 
+To unpack and install it, run the following from your shell::
+
+    tar xvzf django-seo-1.0.tar.gz
+    cd django-seo-1.0/
+    python setup.py install
+
+That's it, you've installed everything you need to install. You can now try the :ref:`tutorial <introduction-tutorial>`.
+
+
+Development version
+-------------------
+
+For those you like to help out, you can check out the development version here::
+
+    git clone git@github.com:willhardy/django-seo.git
+

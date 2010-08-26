@@ -1,0 +1,15 @@
+Installation
+============
+
+To download and install the release:
+
+    pip install django-seo
+
+Or download the release manually, unpack and run:
+
+    python ./setup.py install
+
+If you are interested in the development version, you can download it here:
+
+    git clone git@github.com:willhardy/django-seo.git
+
