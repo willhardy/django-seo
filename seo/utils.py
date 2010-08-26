@@ -127,3 +127,21 @@ def resolve_to_name(path, urlconf=None):
     except Resolver404:
         return None
 
+try:
+    from BeautifulSoup import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
+
+VALID_HEAD_TAGS = "head title base link meta script".split()
+def strip_for_head(value):
+    """ Strips text from the given html string, leaving only tags.
+        This functionality requires BeautifulSoup, nothing will be 
+        done otherwise.
+    """
+    if BeautifulSoup is None:
+        return value
+    soup = BeautifulSoup(value)
+    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
+    return str(soup)
+
+

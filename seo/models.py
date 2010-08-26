@@ -22,10 +22,6 @@ from django.template.defaultfilters import striptags
 from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
 from django.template import Template, Context
-try:
-    from BeautifulSoup import BeautifulSoup
-except ImportError:
-    BeautifulSoup = None
 
 from seo.utils import get_seo_models, resolve_to_name
 from seo.modelmetadata import get_seo_content_types
@@ -33,6 +29,7 @@ from seo.viewmetadata import SystemViewField
 from seo import settings
 
 def template_meta_data(path=None):
+    """ Returns a formatted meta data object for the given path. """
     view_meta_data = None
 
     if path is None:
@@ -53,7 +50,7 @@ def template_meta_data(path=None):
     return FormattedMetaData(meta_data, view_meta_data=view_meta_data)
 
 
-class MetaData(models.Model):
+class PathMetaData(models.Model):
     """ Contains meta information for a page in a django-based site.
         This can be associated with a page in one of X ways:
             1) setting the generic foreign key to an object with get_absolute_url (path is set automatically)
@@ -69,18 +66,6 @@ class MetaData(models.Model):
     # These fields can be manually overridden or populated from the object itself.
     # If there is a conflict the information in the object currently being saved is preserved
     path        = models.CharField(max_length=255, blank=True, null=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
-    title       = models.CharField(max_length=511, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")
-    heading     = models.CharField(max_length=511, default="", blank=True, help_text="This is the page heading, that appears in the &lt;h1&gt; tag.")
-    subheading  = models.CharField(max_length=511, default="", blank=True, help_text="This is the page subheading, that appears near the &lt;h1&gt; tag.")
-    keywords    = models.TextField(default="", blank=True, help_text="Comma-separated keywords for search engines.")
-    description = models.TextField(default="", blank=True, help_text="A short description, displayed in search results.")
-    extra       = models.TextField(default="", blank=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
-
-    # If the generic foreign key is set, populate the above fields from there
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types()})
-    object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
 
     class Meta:
         ordering = ("path",)
@@ -91,65 +76,21 @@ class MetaData(models.Model):
         if self.path:
             return self.path
 
+
+class ModelMetaData(PathMetaData):
+    # If the generic foreign key is set, populate the above fields from there
+    content_type   = models.ForeignKey(ContentType, null=True, blank=True,
+                                        limit_choices_to={'id__in': get_seo_content_types()})
+    object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    content_object = generic.GenericForeignKey('content_type', 'object_id')
+
     def __unicode__(self):
         return self.title or self.heading or self.description or "(blank: %s)" % self.path
 
     def save(self, update_related=True, *args, **kwargs):
-        self.keywords = ", ".join(self.keywords.strip().splitlines())
-        self.description = " ".join(self.description.strip().splitlines())
-        self.extra = strip_for_head(self.extra.strip())
         super(MetaData, self).save(*args, **kwargs)
         if update_related:
             self.update_related_object()
-
-    def update_related_object(self):
-        """ Helps ensure that denormalised data is synchronised. 
-            That is, if data is discovered through explicit fields, these are 
-        """
-        instance = self.content_object
-        if instance:
-            attrs = {}
-
-            # Only populate the fields that are explicity defined
-            fields = instance._meta.get_all_field_names()
-            if 'meta_description' in fields:
-                attrs['meta_description'] = self.description
-            if 'meta_keywords' in fields:
-                attrs['meta_keywords'] = self.keywords
-            if 'meta_title' in fields:
-                attrs['meta_title'] = self.title
-
-            if attrs:
-                # Update the data in the related object. 
-                # Note that we shouldn't trigger the post_save signal
-                self.content_type.model_class()._default_manager.filter(pk=self.object_id).update(**attrs)
-
-    def update_from_related_object(self):
-        """ Updats the meta data from the related object, returning true if 
-            changes have been made. 
-        """
-        if self.content_object:
-            # Populate core fields if the object explicitly defines them
-            if hasattr(self.content_object, 'get_absolute_url'):
-                self.path = self.content_object.get_absolute_url() or self.path
-            if hasattr(self.content_object, 'meta_description'):
-                self.description = striptags(self.content_object.meta_description) or self.description
-            if hasattr(self.content_object, 'meta_keywords'):
-                self.keywords = striptags(self.content_object.meta_keywords) or self.keywords
-            if hasattr(self.content_object, 'meta_title'):
-                self.title = self.content_object.meta_title or self.title
-                # Populate the heading, without overwriting existing data
-                self.heading = self.heading or self.content_object.meta_title
-
-            # Populate using other, non-meta fields, but never overwrite existing data
-            elif hasattr(self.content_object, 'page_title'):
-                self.title = self.title or self.content_object.page_title
-                self.heading = self.heading or self.content_object.page_title
-            elif hasattr(self.content_object, 'title'):
-                self.title = self.title or self.content_object.title
-                self.heading = self.heading or self.content_object.title
-
-            return True
 
     @property
     def category_meta_data(self):
@@ -255,34 +196,6 @@ def _resolve(value, model_instance=None, context_instance=None):
     if "{" in value and context_instance is not None:
         value = Template(value).render(context_instance)
     return value
-
-#from django.core import urlresolvers
-#from django.conf import settings
-#def _get_view_callback(request):
-#    urlconf = settings.ROOT_URLCONF
-#    urlresolvers.set_urlconf(urlconf)
-#    resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
-#
-#    if hasattr(request, "urlconf"):
-#        # Reset url resolver with a custom urlconf.
-#        urlconf = request.urlconf
-#        urlresolvers.set_urlconf(urlconf)
-#        resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
-#
-#    return resolver.resolve(request.path_info)[0]
-
-
-VALID_HEAD_TAGS = "head title base link meta script".split()
-def strip_for_head(value):
-    """ Strips text from the given html string, leaving only tags.
-        This functionality requires BeautifulSoup, nothing will be 
-        done otherwise.
-    """
-    if BeautifulSoup is None:
-        return value
-    soup = BeautifulSoup(value)
-    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
-    return str(soup)
 
 
 def update_callback(sender, instance, created, **kwargs):
