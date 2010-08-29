@@ -112,5 +112,7 @@ except ImportError:
     pass
 
 
+SEO_META_DATA = 'userapp.seo.Coverage'
 SEO_MODELS = ('userapp',)
+
 COVERAGE_MODULES = ('seo', 'userapp', 'flatpages.FlatPage')
