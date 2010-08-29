@@ -1,0 +1,156 @@
+
+.. _reference-definition:
+
+===================
+SEO data definition
+===================
+
+The SEO data definition is used to create a series of Django models to store meta data.
+The definition itself, is similar to the definition of Django models. Here is a simple example:
+
+.. code-block:: python
+
+    class BasicExample(seo.MetaData):
+        title       = seo.Tag()
+        keywords    = seo.MetaTag()
+        description = seo.MetaTag()
+        heading     = seo.Tag(name="h1")
+
+This eventually produces some models, which stores four different pieces of meta data.
+The behaviour can be customised by passing attributes, as the ``heading`` field does.
+The are three built-in meta data fields: ``seo.Tag()``, ``seo.MetaTag()`` and ``seo.Raw()``. 
+The full range of attributes for each type of field is listed below.
+
+
+``seo.Tag``
+===========
+
+
+This is your standard, every-day HTML tag, like ``<title>`` or ``<h1>``.
+
+.. class:: seo.Tag(**options)
+
+.. attribute:: name
+
+    Name of this tag. For example, if name is set to ``h1``, the following will be rendered: ``<h1>My heading</h1>``.
+    By default, this is set to the attribute's name.
+
+.. attribute:: default
+
+    Value if data is missing.
+    For example, if default is set to ``"Welcome to my Website"``, the following will be rendered: ``<h1>Welcome to my Website</h1>``.
+    See general section on ``default`` below, for passing field and method references and callables.
+
+
+``seo.MetaTag``
+---------------
+
+Because ``meta`` tags are a common place to store meta data, a special field is provided. 
+This field is useful, as it has attribute escaping built in (for eg quotations).
+
+.. class:: seo.MetaTag(**options)
+
+.. attribute:: name
+
+    The value of the meta element's ``name`` attribute.
+    For example, if name is set to ``"description"``, the following will be rendered: ``<meta name="description" content="My description" />``
+    By default, this is set to the attribute's name.
+
+.. attribute:: default
+
+    Value of the meta element's ``content`` attribute, if data is missing.
+    For example, if default is set to ``"My Website"``, the following will be rendered: ``<meta name="description" content="My Website" />``.
+    See general section on ``default`` below, for passing field and method references and callables.
+
+
+``seo.Raw``
+-----------
+
+The raw field allows the admin user to enter raw html data (if you want them to!). 
+You can of course restrict the tags available, to ensure that the admin users cannot inadventently break the site 
+(they are after all not playing the role of website developer). 
+By default, a Django ``TextField`` is used for this field.
+
+.. class:: seo.Raw(**options)
+
+.. attribute:: default
+
+    Raw code if data is missing.
+    The value will be rendered exactly as it is provided here (subject to ``valid_tags``).
+    See section on ``default`` below, for passing field and method references and callables.
+
+.. attribute:: valid_tags
+
+    Tags listed here are valid, all other tags will be stipped from the output.
+
+    If this is not set, and ``head`` is set to ``True``, then this will default to:
+
+    .. code-block:: python
+
+        valid_tags = "head title base link meta script".split()
+
+    otherwise, it is set to ``None``, allowing all tags.
+    Use of this requires BeautifulSoup, if it is set explicitly and BeautifulSoup is not available, an error will be raised.
+
+
+All fields:
+-----------
+
+All three fields (``Tag``, ``MetaTag`` and ``Raw``) accept the following parameters.
+Any unknown parameters will be passed onto the underlying Django field (usually a ``CharField``).
+
+.. attribute:: field
+
+    The underlying Django field, either a field class or a field instance. By default this is usually a ``CharField``.
+
+.. attribute:: head
+
+    Boolean, determines if this should automatically be included in the head
+
+.. attribute:: editable
+
+    Boolean, determines if this should be user editable (in the admin),
+    otherwise the default value will always be used.
+
+.. attribute:: verbose_name
+
+    A user friendly name for this field, which appears in the admin
+
+.. attribute:: help_text
+
+    A description of what should go in this field, for the admin.
+    If a default value is given (using the ``default`` parameter), 
+    a description of what will be included will appear automatically at the end of the ``help_text``.
+
+.. attribute:: default
+
+    A default value, when no data is available (as seen above for each of the fields).
+    If you do not set this, it will be set to ``None``, which means the field will not appear.
+    You can pass a callable, name of a field, name of a method or a literal value.
+    The value is resolved in the following way: 
+
+        1) if a callable is provided, call it each time the value is to be displayed
+
+        2) if name of field or method is provided, use the value provided by that field or method
+
+        3) otherwise, treat the given value as a literal value. Literal values can also be explicitly marked.
+
+    If a callable or the name of a method is provided, 
+    it is called (at run time) with the meta data as the only argument (or of course ``self``) .
+    Return ``None`` to leave out the tag/meta tag/raw data.
+
+.. attribute:: max_length
+
+    This is passed directly onto the Django field. By default, it is set to an arbitrary 511 characters, but it is worth setting this manually.
+    For a ``<title>`` tag, a limit of 68 will ensure the title fits into most search engine results.
+    For the description meta tag, a limit of 155 characters will be safe.
+    If the field has been set to use a ``TextField`` Django field, then ``max_length`` cannot be specified.
+
+.. attribute:: Meta.use_sites
+
+    Boolean, determines if all meta data should be linked to a site in the sites framework
+    (the sites field can eventually be set to null, being a fallback for all sites).
+
+.. attribute:: Meta.groups
+
+    Logical grouping of fields. This will be used in the admin, as well as in the output.
