@@ -4,13 +4,13 @@ import seo
 
 
 class DefaultMetaData(seo.MetaData):
-    title       = seo.Tag(head=True, max_length=68, help_text="This is the meta (page) title, that appears in the title bar.")
-    keywords    = seo.MetaTag(help_text="Comma-separated keywords for search engines.")
-    description = seo.MetaTag(max_length=155, help_text="A short description, displayed in search results.")
-    heading     = seo.Tag(name="h1", help_text="This is the page heading, that appears in the &lt;h1&gt; tag.")
+    title       = seo.Tag(head=True, max_length=68)
+    keywords    = seo.MetaTag()
+    description = seo.MetaTag(max_length=155)
+    heading     = seo.Tag(name="h1")
 
-    #subheading = seo.Tag(name="h2", help_text="This is the page subheading, that appears near the &lt;h2&gt; tag.")
-    #extra      = seo.Raw(head=True, help_text="(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;")
+    #subheading = seo.Tag(name="h2")
+    #extra      = seo.Raw(head=True)
     #example    = seo.Tag(field=models.CharField, max_length=255)
     #example2   = seo.MetaTag(head=True, name="description")
 
@@ -43,6 +43,16 @@ class DefaultMetaData(seo.MetaData):
         #    'advanced': ('extra',)
         #    'facebook': ('og_title', 'og_description', 'og_image', 'og_type', 'og_url', 'og_site_name', 'og_admins', 'og_app_id')
         #}
+
+    class HelpText:
+        title       = "This is the meta (page) title, that appears in the title bar."
+        keywords    = "Comma-separated keywords for search engines."
+        description = "A short description, displayed in search results."
+        heading     = "This is the page heading, that appears in the &lt;h1&gt; tag."
+
+        #subheading = "This is the page subheading, that appears near the &lt;h2&gt; tag."
+        #extra      = "(advanced) Any additional HTML to be placed verbatim in the &lt;head&gt;"
+        #og_title   = "Title for facebook"
 
 
 """ The Following is then created:
