@@ -1,5 +1,171 @@
 # -*- coding: utf-8 -*-
 
+# TODO:
+#    * Creation counter in the MetaDataField class
+#    * Bound versions of Tag MetaTag and Raw to track the name given to them
+#    * Rename "editable" and "default" as they clash with Django attributes
+#    * seo.Literal etc
+#    * Groups
+#    * Tests!
+#    * Documentation
+
+from django.db import models
+from django.utils.translation import ugettext_lazy as _
+
+from seo import settings
+from seo.modelmetadata import get_seo_content_types
+from seo.viewmetadata import SystemViewField
+
+# TODO: Replace for i18n
+def _(value):
+    return value
+
+class NotSet(object):
+    pass
+NotSet = NotSet()
+
+class MetaDataField(object):
+    def get_field(self):
+        return self.field(*self.args, **self.kwargs)
+
+class Tag(MetaDataField):
+    def __init__(self, name=None, head=False, editable=True, default=NotSet, field, *args, **kwargs):
+        self.head = head
+        self.name = name
+        self.editable = editable
+        self.default = default
+        self.field = field or models.CharField
+        self.field_args = args
+        self.field_kwargs = kwargs
+        field_kwargs.setdefault('max_length', 511)
+        field_kwargs.setdefault('default', "")
+        field_kwargs.setdefault('blank', True)
+
+class MetaTag(MetaDataField):
+    def __init__(self, name=None, head=True, editable=True, default=NotSet, field, *args, **kwargs):
+        self.head = head
+        self.name = name
+        self.editable = editable
+        self.default = default
+        self.field = field or models.CharField
+        self.field_args = args
+        self.field_kwargs = kwargs
+        field_kwargs.setdefault('max_length', 511)
+        field_kwargs.setdefault('default', "")
+        field_kwargs.setdefault('blank', True)
+
+class Raw(MetaDataField):
+    def __init__(self, head=True, editable=True, default=NotSet, field, *args, **kwargs):
+        self.head = head
+        self.name = name
+        self.editable = editable
+        self.default = default
+        self.field = field or models.TextField
+        self.field_args = args
+        self.field_kwargs = kwargs
+        field_kwargs.setdefault('default', "")
+        field_kwargs.setdefault('blank', True)
+
+class MetaDataBase(type):
+    def __new__(cls, name, bases, attrs):
+
+        # The meta dict will be saved for later
+        Meta = attrs.pop('Meta', {})
+        if Meta:
+            Meta = Meta.__dict__.copy()
+
+        # Remove our options from Meta, so Django won't complain
+        groups = Meta.pop('groups', None)
+        use_sites = Meta.pop('use_sites', False)
+        help_text = attrs.pop('HelpText', {})
+
+        # Collect and sort our elements
+        elements = [(key, attrs.pop(key)) for key, obj in attrs.items() 
+                                        if isinstance(obj, MetaDataField)]
+        elements.sort(lambda x, y: cmp(x[1].creation_counter, 
+                                                y[1].creation_counter))
+        #header_elements = [key for key, obj in elements.items() if obj.head]
+
+        # Create the common Django fields
+        fields = {}
+        for key, obj in elements.items():
+            field = obj.get_field()
+            if not field.help_text and key in help_text:
+                field.help_text = help_text[key]
+            fields[key] = field
+
+        # Create the Django Models
+        # An abstract base and three real models are created using the fields
+        # defined above and additional field for attaching metadata to the 
+        # relevant path, model or view
+
+        # 0. Abstract base model with common fields
+        base_meta = type('Meta', (), Meta)
+        class BaseMeta(base_meta):
+            abstract = True
+            verbose_name = _('metadata')
+            verbose_name_plural = _('metadata')
+            app_label = None # TODO
+        fields['Meta'] = BaseMeta
+        if use_sites: # and Site.objects.is_installed():
+            fields['site'] = models.ForeignKey('contenttypes.Site', default=settings.SITE_ID)
+        MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
+
+        # 1. Path-based model
+        class PathMetaData(MetaDataBaseModel):
+            path = models.CharField(_('path'), max_length=511)
+
+            class Meta:
+                verbose_name = _('path-based metadata')
+                verbose_name_plural = _('path-based metadata')
+                #app_label = None # TODO
+
+        # 2. Model-based model
+        class ModelMetaData(MetaDataBaseModel):
+            path           = models.CharField(_('path'), max_length=511),
+            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
+                                        limit_choices_to={'id__in': get_seo_content_types()}),
+            object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False),
+            content_object = generic.GenericForeignKey('content_type', 'object_id'),
+
+            class Meta:
+                verbose_name = _('model-based metadata')
+                verbose_name_plural = _('model-based metadata')
+                # app_label = None # TODO
+
+        # 3. View-based model
+        class ViewMetaData(MetaDataBaseModel):
+            view = SystemViewField(blank=True, null=True, unique=True)
+
+            class Meta:
+                verbose_name = _('view-based metadata')
+                verbose_name_plural = _('view-based metadata')
+                # app_label = None # TODO
+
+        # Create the class
+        new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
+        new_class.PathMetaData = PathMetaData
+        new_class.ModelMetaData = ModelMetaData
+        new_class.ViewMetaData = ViewMetaData
+        new_class.groups = groups
+        new_class.use_sites = use_sites
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 """ 
     Model definition for django seo app.
     To use this app:

@@ -75,11 +75,25 @@ class DefaultMetaData(seo.MetaData):
     - If groups is mentioned in Meta, these elements are grouped together in both the admin and the outputted meta (otherwise ordering is the same as in the definition)
 
 
+USAGE:
+
+    {% use seo_metadata %}
+
+    {% seo_metadata as metadata %}
+    <head>
+    {{ metadata }}
+    <!-- facebook metadata -->
+    {{ metadata.GROUPS.facebook }}
+
+    </head>
+    <h2>{{ metadata.subtitle }}</h2>
+
+
 Problems:
     - editable has a different meaning to Django's
     - default has a different meaning to Django's
     - help_text editing isn't done in Django and can't be turned off
-    - max_length is set implicitly, should this be set explicitly?
+    - max_length is set implicitly, should this be set explicitly? (I can live with this, length is rarely important)
 
 
 class DefaultMetaDataModel(models.Model):
@@ -108,6 +122,9 @@ class DefaultPathMetaDataModel(DefaultMetaDataMode):
     " For path-based metadata "
     path = models.CharField(max_length=511)
 
+    class Meta:
+        verbose_name = "Path-based metadata"
+        verbose_name_plural = "Path-based metadata"
 
 class DefaultModelMetaDataModel(DefaultMetaDataMode):
     " For model-based metadata "
@@ -117,9 +134,17 @@ class DefaultModelMetaDataModel(DefaultMetaDataMode):
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 
+    class Meta:
+        verbose_name = "Model-based metadata"
+        verbose_name_plural = "Model-based metadata"
+
 
 class DefaultViewMetaDataModel(DefaultMetaDataMode):
     " For view-based metadata "
     view = SystemViewField(blank=True, null=True, unique=True)
+
+    class Meta:
+        verbose_name = "View-based metadata"
+        verbose_name_plural = "View-based metadata"
 
 """
