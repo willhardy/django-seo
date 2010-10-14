@@ -57,21 +57,21 @@ class DefaultMetaData(seo.MetaData):
 
 """ The Following is then created:
 
-    - if "head" is True, tag is automatically included in the head
-    - if "name" is included, that is the name of the given tag, otherwise, the field name is used
-    - if verbose_name is used, pass on to field
-    - if the first argument is a field, that is used (and expanded?)
-    - editable is not stored in the model, it is always the populate_from value
+    + if "head" is True, tag is automatically included in the head
+    + if "name" is included, that is the name of the given tag, otherwise, the field name is used
+    + if verbose_name is used, pass on to field (through field_kwargs)
+    + if the field argument given, that is used (and expanded?)
+    + editable=False is not stored in the model, it is always the populate_from value
     - if choices is given it is passed onto the field, (expanded if just a list of strings)
-    - if sites is given in Meta, add a 'site' field.
+    + if sites is given in Meta, add a 'site' field.
     - populate_from is resolved: 
         1) callable
         2) name of field/callable on metadata object
         3) literal value
-    - If help_text used, this is passed onto the field
-        - the populate_from of the field is sometimes mentioned automatically in the help_text:
-        - if populate_from value is a field name: "If empty, {{ field_name }} will be used"
-        - if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
+    + If help_text used, this is passed onto the field
+        + the populate_from of the field is sometimes mentioned automatically in the help_text:
+        + if populate_from value is a field name: "If empty, {{ field_name }} will be used"
+        + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
     - If groups is mentioned in Meta, these elements are grouped together in both the admin and the outputted meta (otherwise ordering is the same as in the definition)
 
 
@@ -79,10 +79,11 @@ USAGE:
 
     {% use seo_metadata %}
 
-    {% seo_metadata as metadata %}
+    {% get_metadata as metadata %}
     <head>
     {{ metadata }}
-    <!-- facebook grouped metadata -->
+
+    <!-- eg facebook grouped metadata -->
     {{ metadata.facebook }}
 
     </head>

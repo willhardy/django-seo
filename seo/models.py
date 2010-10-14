@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Function to find relevant metadata instances, and call FormattedMetaData(metadata, *instances) (maybe on metadata instance itself!)
-#    * FormattedMetaData._resolve_value()
-#    * Resolve 'populate_from' (see above function)
-#    * Templatetag to instigate all of this
+#    * ViewMetaData and ModelMetaData need to resolve variables
 #    * Signal handlers for ModelInstanceMetaData
 #    * Tests!
 #    * Documentation
@@ -16,17 +13,17 @@ from django.utils.safestring import mark_safe
 from django.utils.html import conditional_escape
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.core.exceptions import ObjectDoesNotExist
 
 from seo import settings
 from seo.utils import strip_for_head
 from seo.modelmetadata import get_seo_content_types
 from seo.viewmetadata import SystemViewField
+from seo.utils import resolve_to_name
 
 # Not yet used (but probably will be soon)
-from seo.utils import get_seo_models, resolve_to_name
-from django.template.loader import render_to_string
+from seo.utils import get_seo_models
 from django.template import Template, Context
-
 
 
 class NotSet(object):
@@ -51,13 +48,44 @@ class FormattedMetaData(object):
         # instances usually path_metadata, view_metadata, model_metadata
         self.instances = instances
 
+
     def _resolve_value(self, name):
         """ Returns an appropriate value for the given name. """
-        # Look in instances for an explicit value
-        # TODO
+        if name in self.metadata.elements:
+            # Look in instances for an explicit value
+            for instance in self.instances:
+                value = getattr(instance, name)
+                if value:
+                    return value
 
-        # Otherwise, return an appropriate default value (populate_from)
-        # TODO
+            # Otherwise, return an appropriate default value (populate_from)
+            populate_from = self.metadata.elements[name].populate_from
+            if callable(populate_from):
+                return populate_from()
+            elif isinstance(populate_from, Literal):
+                return populate_from.value
+            else:
+                return self._resolve_value(self, populate_from)
+
+        # If this is not an element, look for an attribute on metadata
+        # TODO: use try/except AttributeError?
+        elif hasattr(self.metadata, name):
+            value = getattr(self.metadata, name)
+            if callable(value):
+                return value()
+            else:
+                return value
+
+        # Look for an attribute on the instances
+        # TODO: use try/except AttributeError?
+        for instance in self.instances:
+            if hasattr(instance, name):
+                value = getattr(instance, name)
+                if callable(value):
+                    return value()
+                else:
+                    return value
+
 
     def __getattr__(self, name):
         # Look for a group called "name"
@@ -71,6 +99,7 @@ class FormattedMetaData(object):
 
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
+        # TODO: If groups are given, pull those values out and keep them together
         return '\n'.join(self._resolve_value(f) for f,e in self.metadata.elements.items() if e.head)
 
 
@@ -156,6 +185,28 @@ class Raw(MetaDataField):
         return mark_safe(value)
 
 
+
+class PathMetaDataManager(models.Manager):
+    def get_from_path(self, path):
+        return self.get_query_set().get(path=path)
+
+## TODO: ModelMetaData only works if you have a modelinstance
+class ModelMetaDataManager(models.Manager):
+    def get_from_path(self, path):
+        #return self.model.ModelInstanceMetaData.objects.get(path=path)
+        return
+
+class ModelInstanceMetaDataManager(models.Manager):
+    def get_from_path(self, path):
+        return self.get_query_set().get(path=path)
+
+class ViewMetaDataManager(models.Manager):
+    def get_from_path(self, path):
+        view_name = resolve_to_name(path)
+        if view_name is not None:
+            return self.get_query_set().get(view=view_name)
+        raise self.model.DoesNotExist()
+
 class MetaDataBase(type):
     def __new__(cls, name, bases, attrs):
 
@@ -231,6 +282,7 @@ class MetaDataBase(type):
         # 1. Path-based model
         class PathMetaData(MetaDataBaseModel):
             path = models.CharField(_('path'), max_length=511, unique=True)
+            objects = PathMetaDataManager()
 
             class Meta:
                 verbose_name = _('path-based metadata')
@@ -241,6 +293,7 @@ class MetaDataBase(type):
         class ModelMetaData(MetaDataBaseModel):
             content_type   = models.ForeignKey(ContentType, null=True, blank=True, unique=True,
                                         limit_choices_to={'id__in': get_seo_content_types()})
+            objects = ModelMetaDataManager()
 
             class Meta:
                 verbose_name = _('model-based metadata')
@@ -254,6 +307,7 @@ class MetaDataBase(type):
                                         limit_choices_to={'id__in': get_seo_content_types()})
             object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
             content_object = generic.GenericForeignKey('content_type', 'object_id'),
+            objects = ModelInstanceMetaDataManager()
 
             class Meta:
                 verbose_name = _('model-instance-based metadata')
@@ -264,6 +318,7 @@ class MetaDataBase(type):
         # 4. View-based model
         class ViewMetaData(MetaDataBaseModel):
             view = SystemViewField(blank=True, null=True, unique=True)
+            objects = ViewMetaDataManager()
 
             class Meta:
                 verbose_name = _('view-based metadata')
@@ -280,6 +335,55 @@ class MetaDataBase(type):
 
 class MetaData(object):
     __metaclass__ = MetaDataBase
+
+    def get_formatted_data(self, path):
+        """ Return an object to conveniently access the appropriate values. """
+        instances = [
+            ProxyInstance(self.PathMetaData, path),
+            ProxyInstance(self.ModelMetaData, path),
+            ProxyInstance(self.ModelInstanceMetaData, path),
+            ProxyInstance(self.PathMetaData, path),
+            ]
+
+        return FormattedMetaData(self, *instances)
+
+
+def get_meta_data(path, name=None):
+    # Find registered MetaData object
+    if name is not None:
+        metadata = registry[name]
+    else:
+        assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
+        metadata = registry.values()[0]
+    return metadata.get_formatted_data(path)
+
+
+class ProxyInstance(object):
+    """ This is a simple proxy to prevent unnecessary queries.
+        It should only be used in the context of resolving an attribute lookup
+        over several instances.
+        TODO: This could use __attributes
+    """
+    def __init__(self, model, path):
+        self._model = model
+        self._path = path
+
+    @property
+    def _instance(self):
+        # If there is no model, there is no hope
+        if self._model is None:
+            return None
+        if not hasattr(self, '_instance_cache'):
+            try:
+                self._instance_cache = self._model.objects.get_from_path(path=self._path)
+            except ObjectDoesNotExist:
+                # There is no hope
+                self._model = None
+                return None
+        return self._instance_cache
+
+    def __get__(self, name):
+        return getattr(self._instance, name)
 
 
 
