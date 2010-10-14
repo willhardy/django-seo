@@ -138,6 +138,7 @@ def strip_for_head(value):
         This functionality requires BeautifulSoup, nothing will be 
         done otherwise.
     """
+    # TODO Test that tags inside eg <meta> tags or scripts are left alone
     if BeautifulSoup is None:
         return value
     soup = BeautifulSoup(value)

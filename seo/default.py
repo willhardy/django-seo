@@ -14,14 +14,14 @@ class DefaultMetaData(seo.MetaData):
     #example    = seo.Tag(field=models.CharField, max_length=255)
     #example2   = seo.MetaTag(head=True, name="description")
 
-    #og_title       = seo.MetaTag(name="og:title", default="title")
-    #og_description = seo.MetaTag(name="og:description", default="description")
-    #og_image       = seo.MetaTag(name="og:image", default="get_og_image")
-    #og_type        = seo.MetaTag(name="og:type", default="get_og_type", editable=False)
-    #og_url         = seo.MetaTag(name="og:url", default="get_absolute_url", editable=False)
-    #og_site_name   = seo.MetaTag(name="og:site_name", default=seo.Literal(settings.SITE_NAME), editable=False)
-    #og_admins      = seo.MetaTag(name="fb:admins", default=seo.Literal("511258799"), editable=False)
-    #og_app_id      = seo.MetaTag(name="fb:app_id", default=seo.Literal("137408292967167"), editable=False)
+    #og_title       = seo.MetaTag(name="og:title", populate_from="title")
+    #og_description = seo.MetaTag(name="og:description", populate_from="description")
+    #og_image       = seo.MetaTag(name="og:image", populate_from="get_og_image")
+    #og_type        = seo.MetaTag(name="og:type", populate_from="get_og_type", editable=False)
+    #og_url         = seo.MetaTag(name="og:url", populate_from="get_absolute_url", editable=False)
+    #og_site_name   = seo.MetaTag(name="og:site_name", populate_from=seo.Literal(settings.SITE_NAME), editable=False)
+    #og_admins      = seo.MetaTag(name="fb:admins", populate_from=seo.Literal("511258799"), editable=False)
+    #og_app_id      = seo.MetaTag(name="fb:app_id", populate_from=seo.Literal("137408292967167"), editable=False)
 
     #def get_og_type(self):
     #    if self.model_instance is not None and self.model_instance.__class__.__name__ == 'Product':
@@ -61,17 +61,17 @@ class DefaultMetaData(seo.MetaData):
     - if "name" is included, that is the name of the given tag, otherwise, the field name is used
     - if verbose_name is used, pass on to field
     - if the first argument is a field, that is used (and expanded?)
-    - editable is not stored in the model, it is always the default value
+    - editable is not stored in the model, it is always the populate_from value
     - if choices is given it is passed onto the field, (expanded if just a list of strings)
     - if sites is given in Meta, add a 'site' field.
-    - default is resolved: 
+    - populate_from is resolved: 
         1) callable
         2) name of field/callable on metadata object
         3) literal value
     - If help_text used, this is passed onto the field
-        - the default value of the field is sometimes mentioned automatically in the help_text:
-        - if default value is field: "If empty, {{ field_name }} will be used"
-        - if default value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
+        - the populate_from of the field is sometimes mentioned automatically in the help_text:
+        - if populate_from value is a field name: "If empty, {{ field_name }} will be used"
+        - if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
     - If groups is mentioned in Meta, these elements are grouped together in both the admin and the outputted meta (otherwise ordering is the same as in the definition)
 
 
@@ -82,16 +82,15 @@ USAGE:
     {% seo_metadata as metadata %}
     <head>
     {{ metadata }}
-    <!-- facebook metadata -->
-    {{ metadata.GROUPS.facebook }}
+    <!-- facebook grouped metadata -->
+    {{ metadata.facebook }}
 
     </head>
     <h2>{{ metadata.subtitle }}</h2>
 
 
 Problems:
-    - editable has a different meaning to Django's
-    - default has a different meaning to Django's
+    - editable has a different meaning to Django's (can live with that)
     - help_text editing isn't done in Django and can't be turned off
     - max_length is set implicitly, should this be set explicitly? (I can live with this, length is rarely important)
 

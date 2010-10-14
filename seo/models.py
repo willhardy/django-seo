@@ -1,81 +1,172 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Creation counter in the MetaDataField class
-#    * Bound versions of Tag MetaTag and Raw to track the name given to them
-#    * Rename "editable" and "default" as they clash with Django attributes
-#    * seo.Literal etc
-#    * Groups
+#    * Function to find relevant metadata instances, and call FormattedMetaData(metadata, *instances) (maybe on metadata instance itself!)
+#    * FormattedMetaData._resolve_value()
+#    * Resolve 'populate_from' (see above function)
+#    * Templatetag to instigate all of this
+#    * Signal handlers for ModelInstanceMetaData
 #    * Tests!
 #    * Documentation
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.utils.datastructures import SortedDict
+from django.utils.safestring import mark_safe
+from django.utils.html import conditional_escape
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes import generic
 
 from seo import settings
+from seo.utils import strip_for_head
 from seo.modelmetadata import get_seo_content_types
 from seo.viewmetadata import SystemViewField
 
-# TODO: Replace for i18n
-def _(value):
-    return value
+# Not yet used (but probably will be soon)
+from seo.utils import get_seo_models, resolve_to_name
+from django.template.loader import render_to_string
+from django.template import Template, Context
+
+
 
 class NotSet(object):
-    pass
+    " A singleton to identify unset values (where None would have meaning) "
 NotSet = NotSet()
 
+
+class Literal(object):
+    " Wrap literal values so that the system knows to treat them that way "
+    def __init__(self, value):
+        self.value = value
+
+
+class FormattedMetaData(object):
+    """ Allows convenient access to selected metadata.
+        Metadata for each field may be sourced from any one of the relevant instances passed.
+    """
+
+    def __init__(self, metadata, *instances):
+        # For defaults
+        self.metadata = metadata
+        # instances usually path_metadata, view_metadata, model_metadata
+        self.instances = instances
+
+    def _resolve_value(self, name):
+        """ Returns an appropriate value for the given name. """
+        # Look in instances for an explicit value
+        # TODO
+
+        # Otherwise, return an appropriate default value (populate_from)
+        # TODO
+
+    def __getattr__(self, name):
+        # Look for a group called "name"
+        if name in self.metadata.groups:
+            return '\n'.join(self._resolve_value(f) for f in self.metadata.groups[name])
+        # Look for an element called "name"
+        elif name in self.metadata.elements:
+            return self._resolve_value(name)
+        else:
+            raise AttributeError
+
+    def __unicode__(self):
+        """ String version of this object is the html output of head elements. """
+        return '\n'.join(self._resolve_value(f) for f,e in self.metadata.elements.items() if e.head)
+
+
 class MetaDataField(object):
+    creation_counter = 0
+
+    def __init__(self, name, head, editable, populate_from, field, field_kwargs):
+        self.name = name
+        self.head = head
+        self.editable = editable
+        self.populate_from = populate_from
+        self.field = field or models.CharField
+
+        if field_kwargs is None: field_kwargs = {}
+        self.field_kwargs = field_kwargs
+
+        # Track creation order for field ordering
+        self.creation_counter = MetaDataField.creation_counter
+        MetaDataField.creation_counter += 1
+
+    def contribute_to_class(self, cls, name):
+        if not self.name:
+            self.name = name
+
     def get_field(self):
-        return self.field(*self.args, **self.kwargs)
+        return self.field(**self.field_kwargs)
+
+    def render(self, value):
+        raise NotImplementedError
+
 
 class Tag(MetaDataField):
-    def __init__(self, name=None, head=False, editable=True, default=NotSet, field, *args, **kwargs):
-        self.head = head
+    def __init__(self, name=None, head=False, escape_value=True,
+                       editable=True, populate_from=NotSet,
+                       field=models.CharField, field_kwargs=None):
         self.name = name
-        self.editable = editable
-        self.default = default
-        self.field = field or models.CharField
-        self.field_args = args
-        self.field_kwargs = kwargs
+        self.escape_value = escape_value
+        if field_kwargs is None: 
+            field_kwargs = {}
         field_kwargs.setdefault('max_length', 511)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
+        super(Tag, self).__init__(head, editable, populate_from, field, field_kwargs)
+
+    def render(self, value):
+        if self.escape_value:
+            value = conditional_escape(value)
+        name = conditional_escape(name).replace(' ', '')
+        return mark_safe(u'<%s>%s</%s>' % (name, value, name))
+
 
 class MetaTag(MetaDataField):
-    def __init__(self, name=None, head=True, editable=True, default=NotSet, field, *args, **kwargs):
-        self.head = head
+    def __init__(self, name=None, head=True,
+                       editable=True, populate_from=NotSet,
+                       field=models.CharField, field_kwargs=None):
         self.name = name
-        self.editable = editable
-        self.default = default
-        self.field = field or models.CharField
-        self.field_args = args
-        self.field_kwargs = kwargs
+        if field_kwargs is None: 
+            field_kwargs = {}
         field_kwargs.setdefault('max_length', 511)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
+        super(Tag, self).__init__(head, editable, populate_from, field, field_kwargs)
+
+    def render(self, value):
+        # TODO: HTML/XHTML? Use template?
+        value = value.replace('"', '&#34;')
+        name = self.name.replace('"', '&#34;')
+        return mark_safe(u'<meta name="%s" content="%s" />' % (name, value))
+
 
 class Raw(MetaDataField):
-    def __init__(self, head=True, editable=True, default=NotSet, field, *args, **kwargs):
-        self.head = head
-        self.name = name
-        self.editable = editable
-        self.default = default
-        self.field = field or models.TextField
-        self.field_args = args
-        self.field_kwargs = kwargs
+    def __init__(self, head=True, editable=True, populate_from=NotSet,
+                                field=models.TextField, field_kwargs=None):
+        if field_kwargs is None: 
+            field_kwargs = {}
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
+        super(Tag, self).__init__(None, head, editable, populate_from, field, field_kwargs)
+
+    def render(self, value):
+        if self.head:
+            value = strip_for_head(value)
+        return mark_safe(value)
+
 
 class MetaDataBase(type):
     def __new__(cls, name, bases, attrs):
 
-        # The meta dict will be saved for later
+        # Save options as a dict for now (we will be editing them)
+        # TODO: Is this necessary, should we bother passing through Django Meta options?
         Meta = attrs.pop('Meta', {})
         if Meta:
             Meta = Meta.__dict__.copy()
 
         # Remove our options from Meta, so Django won't complain
-        groups = Meta.pop('groups', None)
+        groups = Meta.pop('groups', {})
         use_sites = Meta.pop('use_sites', False)
         help_text = attrs.pop('HelpText', {})
 
@@ -84,20 +175,46 @@ class MetaDataBase(type):
                                         if isinstance(obj, MetaDataField)]
         elements.sort(lambda x, y: cmp(x[1].creation_counter, 
                                                 y[1].creation_counter))
-        #header_elements = [key for key, obj in elements.items() if obj.head]
+        elements = SortedDict(elements)
 
-        # Create the common Django fields
-        fields = {}
+        # Validation:
+        # Check that no group names clash with element names
+        for key in groups:
+            if key in elements:
+                raise Exception("Group name '%s' clashes with field name" % key)
+
+        # Preprocessing complete, here is the new class
+        new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
+
+        # Some useful attributes
+        new_class.elements = elements
+        new_class.groups = groups
+        new_class.use_sites = use_sites
+
+        # TODO: Reorganise? should this go somewhere else?
         for key, obj in elements.items():
-            field = obj.get_field()
-            if not field.help_text and key in help_text:
-                field.help_text = help_text[key]
-            fields[key] = field
+            obj.contribute_to_class(new_class, key)
 
         # Create the Django Models
         # An abstract base and three real models are created using the fields
         # defined above and additional field for attaching metadata to the 
         # relevant path, model or view
+
+        # Create the common Django fields
+        fields = {}
+        for key, obj in elements.items():
+            if obj.editable:
+                field = obj.get_field()
+                populate_from = getattr(field, 'populate_from', None)
+                # Add field help text if missing, add something useful
+                if not field.help_text:
+                    if key in help_text:
+                        field.help_text = help_text[key]
+                    elif populate_from and populate_from in elements:
+                        field.help_text = _("If empty, %s will be used") % elements[populate_from].verbose_name
+                    elif populate_from and hasattr(populate_from, 'short_description'):
+                        field.help_text = _("If empty: %s.") % populate_from.short_description
+                fields[key] = field
 
         # 0. Abstract base model with common fields
         base_meta = type('Meta', (), Meta)
@@ -113,7 +230,7 @@ class MetaDataBase(type):
 
         # 1. Path-based model
         class PathMetaData(MetaDataBaseModel):
-            path = models.CharField(_('path'), max_length=511)
+            path = models.CharField(_('path'), max_length=511, unique=True)
 
             class Meta:
                 verbose_name = _('path-based metadata')
@@ -122,18 +239,29 @@ class MetaDataBase(type):
 
         # 2. Model-based model
         class ModelMetaData(MetaDataBaseModel):
-            path           = models.CharField(_('path'), max_length=511),
-            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types()}),
-            object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False),
-            content_object = generic.GenericForeignKey('content_type', 'object_id'),
+            content_type   = models.ForeignKey(ContentType, null=True, blank=True, unique=True,
+                                        limit_choices_to={'id__in': get_seo_content_types()})
 
             class Meta:
                 verbose_name = _('model-based metadata')
                 verbose_name_plural = _('model-based metadata')
                 # app_label = None # TODO
 
-        # 3. View-based model
+        # 3. Model-instance-based model
+        class ModelInstanceMetaData(MetaDataBaseModel):
+            path           = models.CharField(_('path'), max_length=511, unique=True)
+            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
+                                        limit_choices_to={'id__in': get_seo_content_types()})
+            object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
+            content_object = generic.GenericForeignKey('content_type', 'object_id'),
+
+            class Meta:
+                verbose_name = _('model-instance-based metadata')
+                verbose_name_plural = _('model-instance-based metadata')
+                unique_together = ('content_type', 'object_id')
+                # app_label = None # TODO
+
+        # 4. View-based model
         class ViewMetaData(MetaDataBaseModel):
             view = SystemViewField(blank=True, null=True, unique=True)
 
@@ -142,13 +270,16 @@ class MetaDataBase(type):
                 verbose_name_plural = _('view-based metadata')
                 # app_label = None # TODO
 
-        # Create the class
-        new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
         new_class.PathMetaData = PathMetaData
         new_class.ModelMetaData = ModelMetaData
+        new_class.ModelInstanceMetaData = ModelInstanceMetaData
         new_class.ViewMetaData = ViewMetaData
-        new_class.groups = groups
-        new_class.use_sites = use_sites
+
+        return new_class
+
+
+class MetaData(object):
+    __metaclass__ = MetaDataBase
 
 
 
@@ -156,43 +287,9 @@ class MetaDataBase(type):
 
 
 
+# OLD CLASSES/FUNCTIONS
+# Kept for reference, remove when new API is complete
 
-
-
-
-
-
-
-
-
-
-""" 
-    Model definition for django seo app.
-    To use this app:
-        1. Install the seo directory somewhere in your python path
-        2. Add 'seo' to INSTALLED_APPS
-        3. If you would like to reference objects, define SEO_MODELS in settings
-           as a list of model or app names eg ('flatpages.FlatPage', 'blog',)
-        4. Do one or both of the following
-          a) Add 'seo.context_processors.seo' to TEMPLATE_CONTEXT_PROCESSORS
-             and reference {{ seo_meta_data }} in your (eg base) template
-          b) Add 'seo.middleware.MetaDataMiddleware' to MIDDLEWARE and
-             make sure meta data isn't already defined in the template.
-
-"""
-
-from django.db import models
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
-from django.template.defaultfilters import striptags
-from django.utils.safestring import mark_safe
-from django.template.loader import render_to_string
-from django.template import Template, Context
-
-from seo.utils import get_seo_models, resolve_to_name
-from seo.modelmetadata import get_seo_content_types
-from seo.viewmetadata import SystemViewField
-from seo import settings
 
 def template_meta_data(path=None):
     """ Returns a formatted meta data object for the given path. """
@@ -217,106 +314,7 @@ def template_meta_data(path=None):
     return FormattedMetaData(meta_data, view_meta_data=view_meta_data)
 
 
-class PathMetaData(models.Model):
-    """ Contains meta information for a page in a django-based site.
-        This can be associated with a page in one of X ways:
-            1) setting the generic foreign key to an object with get_absolute_url (path is set automatically)
-            2) setting the URL manually
-
-        PROBLEMS:
-        * One problem that can occur if the URL is manually overridden and it no
-          longer matches the linked object. Not sure what to do here.
-        * Overridden title information is not relayed back to the object (not too important)
-        
-    """
-
-    # These fields can be manually overridden or populated from the object itself.
-    # If there is a conflict the information in the object currently being saved is preserved
-    path        = models.CharField(max_length=255, blank=True, null=True, unique=True, help_text="Specify the path (URL) for this page (only if no object is linked).")
-
-    class Meta:
-        ordering = ("path",)
-        verbose_name = u"metadata"
-        verbose_name_plural = u"metadata"
-
-    def get_absolute_url(self):
-        if self.path:
-            return self.path
-
-
-class ModelMetaData(PathMetaData):
-    # If the generic foreign key is set, populate the above fields from there
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types()})
-    object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
-
-    def __unicode__(self):
-        return self.title or self.heading or self.description or "(blank: %s)" % self.path
-
-    def save(self, update_related=True, *args, **kwargs):
-        super(MetaData, self).save(*args, **kwargs)
-        if update_related:
-            self.update_related_object()
-
-    @property
-    def category_meta_data(self):
-        """ Return the Meta Data instance that is responsible for the entire content type. 
-            If this is not applicable, return None.
-        """
-        if self.content_type_id is not None and self.object_id is not None:
-            if not hasattr(self, '_category_meta_data'):
-                try:
-                    self._category_meta_data = self.__class__._default_manager.get(content_type__id=self.content_type_id, object_id__isnull=True)
-                except self.__class__.DoesNotExist:
-                    self._category_meta_data = None
-            return self._category_meta_data
-
-    @property
-    def formatted(self):
-        return FormattedMetaData(self)
-
-
-class ViewMetaData(MetaData):
-    """ A subclass of meta data that can be found by searching for the view. """
-    view           = SystemViewField(blank=True, null=True, unique=True)
-
-    class Meta:
-        verbose_name = u"view-based metadata"
-        verbose_name_plural = u"view-based metadata"
-
-
-class FormattedMetaData(dict):
-    """ Class to make template access to meta data more convienient.
-    """
-    title       = property(lambda s: s._get_value('title', settings.DEFAULT_TITLE))
-    keywords    = property(lambda s: s._get_value('keywords', settings.DEFAULT_KEYWORDS, tag=True))
-    description = property(lambda s: s._get_value('description', settings.DEFAULT_DESCRIPTION, tag=True))
-    heading     = property(lambda s: s._get_value('heading'))
-    subheading  = property(lambda s: s._get_value('subheading'))
-    extra       = property(lambda s: s._get_value('extra'))
-
-    def __init__(self, meta_data, view_meta_data=None):
-        self._meta_data = meta_data
-        self._view_meta_data = view_meta_data
-        self._category_meta_data = None
-
-    def _get_value(self, name, default=None, tag=False):
-        """ Retrieves a sensible value and prepares it for display. """
-        # Get the raw value from the meta data object
-        value = getattr(self._meta_data, name)
-        # If no value is found, look in the view meta data
-        if not value and self._view_meta_data is not None:
-            value = getattr(self._view_meta_data, name)
-        # If no value is found, look for a category or a default
-        if not value:
-            value = self._get_category_value(name) or default or ""
-        # If this belongs in a tag, escape quote symbols
-        if tag:
-            value = value.replace('"', '&#34;')
-        # Prevent auto escaping on this value
-        return mark_safe(value)
-
+# For ModelMetaData: resolve the string substitution using the relevant model
     def _get_category_value(self, name):
         """ Retrieve a value from a category meta data object, 
             allowing a single point of control for an entire content type.
@@ -329,30 +327,6 @@ class FormattedMetaData(dict):
             val = _resolve(val,self._meta_data.content_object)
         return val
 
-    def resolve(self, context):
-        if self._view_meta_data is not None:
-            for name in ('title', 'keywords', 'description', 'heading', 'subheading', 'extra'):
-                setattr(self._view_meta_data, name, _resolve(getattr(self._view_meta_data, name), context_instance=context))
-
-    @property
-    def html(self):
-        """ Return an html representation of this meta data suitable
-            for inclusion in <head>. 
-            Note:
-              * 'heading' and 'subheading' should not be included.
-              * Be careful not to try to get the full html inside this template.
-        """
-        return mark_safe(render_to_string(settings.TEMPLATE, self.context))
-
-    @property
-    def context(self):
-        return {settings.CONTEXT_VARIABLE: self}
-
-    def __unicode__(self):
-        """ String version of this object is the html output. """
-        return self.html
-
-
 def _resolve(value, model_instance=None, context_instance=None):
     """ Resolves any template references in the given value. 
     """
@@ -364,6 +338,8 @@ def _resolve(value, model_instance=None, context_instance=None):
         value = Template(value).render(context_instance)
     return value
 
+
+# ModelInstanceMetaData needs to be linked to the relevant instance
 
 def update_callback(sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant
