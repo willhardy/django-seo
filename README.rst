@@ -5,16 +5,16 @@ Django SEO tools
 This is a pre-1.0 version of a set of SEO tools for Django.
 It allows you to associate metadata with:
 
-    * absolute paths
-    * model instances
-    * model classes
-    * views
+* absolute paths
+* model instances
+* model classes
+* views
 
 Metadata can be edited in the admin in a centralised place, but also alongside any associated models.
 
 This is however a framework, not an app. You therefore have
 complete control over the data you store. 
-Here is an example of a definition
+Here is an example of a definition::
 
     from rollyourown import seo
 
@@ -33,5 +33,5 @@ Here is an example of a definition
 As you can see it is very flexible, but there is much more than this simple example.
 
 The current version you are looking at is a complete rewrite to make things a whole lot more flexible. 
-It is ABSOLUTELY NOT STABLE, and will be released as a stable version "1.0" after it has been sufficiently tested and documented.
+It is **ABSOLUTELY NOT STABLE**, and will be released as a stable version "1.0" after it has been sufficiently tested and documented.
 
