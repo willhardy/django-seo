@@ -64,7 +64,7 @@ class DefaultMetaData(seo.MetaData):
     + editable=False is not stored in the model, it is always the populate_from value
     - if choices is given it is passed onto the field, (expanded if just a list of strings)
     + if sites is given in Meta, add a 'site' field.
-    - populate_from is resolved: 
+    + populate_from is resolved: 
         1) callable
         2) name of field/callable on metadata object
         3) literal value

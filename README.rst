@@ -3,12 +3,35 @@ Django SEO tools
 ================
 
 This is a pre-1.0 version of a set of SEO tools for Django.
-It allows you to:
+It allows you to associate metadata with:
 
-    * Associate standard metadata with model instances
-    * Associate standard metadata with views
-    * Customise the metadata that is stored (eg geotagging)
-    * Edit metadata separately in the admin
+    * absolute paths
+    * model instances
+    * model classes
+    * views
 
-I imagine I will be changing the models dramatically before releasing a 1.0 version, 
-which will indicate API stability thereafter.
+Metadata can be edited in the admin in a centralised place, but also alongside any associated models.
+
+This is however a framework, not an app. You therefore have
+complete control over the data you store. 
+Here is an example of a definition
+
+    from rollyourown import seo
+
+    class BasicMetaData(seo.MetaData):
+        title          = seo.Tag(max_length=68, head=True)
+        keywords       = seo.MetaTag()
+        description    = seo.MetaTag(max_length=155)
+        heading        = seo.Tag(name="h1")
+        subheading     = seo.Tag(name="h2")
+        extra          = seo.Raw(head=True)
+    
+        # Adding some fields for facebook (opengraph)
+        og_title       = seo.MetaTag(name="og:title", populate_from="title", verbose_name="facebook title")
+        og_description = seo.MetaTag(name="og:description", populate_from="description", verbose_name='facebook description')
+
+As you can see it is very flexible, but there is much more than this simple example.
+
+The current version you are looking at is a complete rewrite to make things a whole lot more flexible. 
+It is ABSOLUTELY NOT STABLE, and will be released as a stable version "1.0" after it has been sufficiently tested and documented.
+
