@@ -2,6 +2,7 @@
 
 # TODO:
 #    * ViewMetaData needs to resolve variables
+#    * Admin!
 #    * Tests!
 #    * Documentation
 
