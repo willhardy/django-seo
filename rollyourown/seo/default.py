@@ -77,7 +77,7 @@ class DefaultMetaData(seo.MetaData):
 
 USAGE:
 
-    {% use seo_metadata %}
+    {% load seo %}
 
     {% get_metadata as metadata %}
     <head>
