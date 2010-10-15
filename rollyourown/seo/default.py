@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-import seo
+from rollyourown import seo
 
 
 class DefaultMetaData(seo.MetaData):

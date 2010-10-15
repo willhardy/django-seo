@@ -3,7 +3,7 @@
 
 from django import template
 import logging
-from seo.models import get_meta_data
+from rollyourown.seo import get_meta_data
 from django.template import VariableDoesNotExist
 
 register = template.Library()

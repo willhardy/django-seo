@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.core.management.base import BaseCommand
-from seo.models import get_seo_models, update_callback, MetaData
+from rollyourown.seo.models import get_seo_models, update_callback, MetaData
 from django.contrib.contenttypes.models import ContentType
 
 class Command(BaseCommand):

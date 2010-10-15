@@ -93,7 +93,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     )
 
 INSTALLED_APPS = [
-    'seo',
+    'rollyourown.seo',
     'userapp',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -115,4 +115,4 @@ except ImportError:
 SEO_META_DATA = 'userapp.seo.Coverage'
 SEO_MODELS = ('userapp',)
 
-COVERAGE_MODULES = ('seo', 'userapp', 'flatpages.FlatPage')
+COVERAGE_MODULES = ('rollyourown.seo', 'userapp', 'flatpages.FlatPage')

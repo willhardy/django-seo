@@ -1,52 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from seo.utils import LazyChoices
 from django.utils.functional import lazy
+from rollyourown.seo.utils import get_seo_models
+from django.db.utils import DatabaseError
 
-class SystemViews(LazyChoices):
-    def populate(self):
-        """ Populate this list with all views that take no arguments.
-        """
-        from django.conf import settings
-        from django.core import urlresolvers
-
-        self.append(("", ""))
-        urlconf = settings.ROOT_URLCONF
-        resolver = urlresolvers.RegexURLResolver(r'^/', urlconf)
-        # Collect base level views
-        for key, value in resolver.reverse_dict.items():
-            if isinstance(key, basestring):
-                args = value[0][0][1]
-                url = "/" + value[0][0][0]
-                self.append((key, " ".join(key.split("_"))))
-        # Collect namespaces (TODO: merge these two sections into one)
-        for namespace, url in resolver.namespace_dict.items():
-            for key, value in url[1].reverse_dict.items():
-                if isinstance(key, basestring):
-                    args = value[0][0][1]
-                    full_key = '%s:%s' % (namespace, key)
-                    self.append((full_key, "%s: %s" % (namespace, " ".join(key.split("_")))))
-        self.sort()
+def _get_seo_content_types():
+    """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
+    try:
+        from django.contrib.contenttypes.models import ContentType
+        return [ ContentType.objects.get_for_model(m).id for m in get_seo_models() ]
+    except DatabaseError:
+        # Return an empty list if this is called too early
+        return []
+def get_seo_content_types():
+    return lazy(_get_seo_content_types, list)()
 
 
 from django import forms
-class SystemViewChoiceField(forms.TypedChoiceField):
+class SEOModelChoiceField(forms.ModelChoiceField):
     def _get_choices(self):
         return self._choices
     def _set_choices(self, value):
-        self._choices =  self.widget.choices = value
+        self._choices = self.widget.choices = value
     choices = property(_get_choices, _set_choices)
-
 
 from django.db.models.fields import BLANK_CHOICE_DASH
 from django.db import models
 from django.utils.text import capfirst
-class SystemViewField(models.CharField):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault('max_length', 255)
-        kwargs.setdefault('choices', SystemViews())
-        super(SystemViewField, self).__init__(*args, **kwargs)
+class SEOContentTypeField(models.ForeignKey):
 
     def get_choices(self, include_blank=True, blank_choice=BLANK_CHOICE_DASH):
         return self.choices
