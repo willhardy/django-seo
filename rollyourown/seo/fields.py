@@ -30,11 +30,14 @@ class MetaDataField(object):
         self.head = head
         self.editable = editable
         self.populate_from = populate_from
+        self.field = field or models.CharField
+
         # If valid_tags is a string, tags are space separated words
         if isinstance(valid_tags, basestring):
             valid_tags = valid_tags.split()
-        self.valid_tags = set(valid_tags)
-        self.field = field or models.CharField
+        if valid_tags is not None:
+            valid_tags = set(valid_tags)
+        self.valid_tags = valid_Tags
 
         if field_kwargs is None: field_kwargs = {}
         self.field_kwargs = field_kwargs
@@ -108,6 +111,7 @@ class MetaTag(MetaDataField):
         super(MetaTag, self).__init__(name, head, editable, populate_from, valid_tags, field, field_kwargs)
 
     def clean(self, value):
+        # Remove double quote, replace newlines with spaces
         return value.replace('"', '&#34;').replace("\n", " ").strip()
 
     def render(self, value):
@@ -127,6 +131,7 @@ class KeywordTag(MetaTag):
                         field_kwargs, help_text)
 
     def clean(self, value)
+        # Remove double quote, replace newlines with commas
         return value.replace('"', '&#34;').replace("\n", ", ").strip()
 
 
@@ -143,9 +148,17 @@ class Raw(MetaDataField):
         super(Raw, self).__init__(None, head, editable, populate_from, valid_tags, field, field_kwargs)
 
     def clean(self, value):
-        # TODO: escape/strip all but self.valid_tags
+        # Find a suitable set of valid tags using self.head and self.valid_tags
         if self.head:
-            value = strip_tags(value, VALID_HEAD_TAGS)
+            valid_tags = set(VALID_HEAD_TAGS)
+            if self.valid_tags is not None:
+                valid_tags = valid_tags.intersection_update(self.valid_tags)
+        else:
+            valid_tags = self.valid_tags
+
+        if valid_tags is not None:
+            value = strip_tags(value, valid_tags)
+
         return mark_safe(value)
 
     def render(self, value):
