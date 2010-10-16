@@ -5,25 +5,12 @@ from django.conf import settings
 from django.db import models
 from django.utils.functional import lazy
 
-setting_name_seo_models = "SEO_MODELS"
 
-def get_seo_models():
-    """ Returns a list of models that are defined in settings (SEO_MODELS)
-    """
-    seo_models = []
-    for model_name in getattr(settings, setting_name_seo_models, ()):
-        if "." in model_name:
-            # TODO: Test this block
-            app_label, model_name = model_name.split(".", 1)
-            model = models.get_model(app_label, model_name)
-            if model:
-                seo_models.append(model)
-        else:
-            app = models.get_app(model_name)
-            if app:
-                seo_models.extend(models.get_models(app))
-
-    return seo_models
+class NotSet(object):
+    " A singleton to identify unset values (where None would have meaning) "
+    def __str__(self): return "NotSet"
+    def __repr__(self): return self.__str__()
+NotSet = NotSet()
 
 
 class LazyList(list):
