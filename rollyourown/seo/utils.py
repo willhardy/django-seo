@@ -132,8 +132,8 @@ try:
 except ImportError:
     BeautifulSoup = None
 
-VALID_HEAD_TAGS = "head title base link meta script".split()
-def strip_for_head(value):
+# XXX: Replace with escape_tags
+def strip_tags(value, valid_tags):
     """ Strips text from the given html string, leaving only tags.
         This functionality requires BeautifulSoup, nothing will be 
         done otherwise.
@@ -142,7 +142,17 @@ def strip_for_head(value):
     if BeautifulSoup is None:
         return value
     soup = BeautifulSoup(value)
-    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in VALID_HEAD_TAGS) ]
+    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in valid_tags) ]
     return str(soup)
 
-
+def escape_tags(value, valid_tags):
+    """ Strips text from the given html string, leaving only tags.
+        This functionality requires BeautifulSoup, nothing will be 
+        done otherwise.
+    """
+    # TODO Test that tags inside eg <meta> tags or scripts are left alone
+    if BeautifulSoup is None:
+        return value
+    soup = BeautifulSoup(value)
+    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in valid_tags) ]
+    return str(soup)

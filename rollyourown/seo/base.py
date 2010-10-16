@@ -2,9 +2,14 @@
 
 # TODO:
 #    * ViewMetaData needs to resolve variables
+#    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
 #    * Admin!
 #    * Tests!
 #    * Documentation
+#    * escape '"', maybe also '<', '>', '&' etc.
+#    * ID and NAME tokens must begin with a letter ([A-Za-z]) and may be followed by any number of letters, digits ([0-9]), hyphens ("-"), underscores ("_"), colons (":"), and periods (".").
+
+import re
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -16,7 +21,7 @@ from django.contrib.contenttypes import generic
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 
-from rollyourown.seo.utils import strip_for_head
+from rollyourown.seo.utils import strip_tags
 from rollyourown.seo.modelmetadata import get_seo_content_types
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name
@@ -26,9 +31,21 @@ from django.template import Template, Context
 
 registry = SortedDict()
 
+VALID_HEAD_TAGS = "head title base link meta script".split()
+VALID_INLINE_TAGS = (
+    "area img object map param "
+    "a abbr acronym dfn em strong "
+    "code samp kbd var "
+    "b i big small tt " # would like to leave these out :-)
+    "span br bdo cite del ins q sub sup"
+    # NB: deliberately leaving out iframe and script
+).split()
+
 
 class NotSet(object):
     " A singleton to identify unset values (where None would have meaning) "
+    def __str__(self): return "NotSet"
+    def __repr__(self): return self.__str__()
 NotSet = NotSet()
 
 
@@ -67,7 +84,7 @@ class FormattedMetaData(object):
             for instance in self.__instances():
                 value = getattr(instance, name)
                 if value:
-                    return value
+                    return BoundMetaDataField(self.__metadata.elements[name], value)
 
             # Otherwise, return an appropriate default value (populate_from)
             populate_from = self.__metadata.elements[name].populate_from
@@ -100,18 +117,35 @@ class FormattedMetaData(object):
 
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
-        # TODO: If groups are given, pull those values out and keep them together
-        return '\n'.join(filter(None, (self._resolve_value(f) for f,e in self.__metadata.elements.items() if e.head)))
+        return '\n'.join(map(unicode, filter(None, (self._resolve_value(f) for f,e in self.__metadata.elements.items() if e.head))))
+
+
+class BoundMetaDataField(object):
+    """ An object to help provide templates with access to a "bound" meta data field. """
+
+    def __init__(self, field, value):
+        self.field = field
+        self.value = field.clean(value)
+
+    def __unicode__(self):
+        return self.field.render(self.value)
+
+    def __str__(self):
+        return self.__unicode__().encode("ascii", "ignore")
 
 
 class MetaDataField(object):
     creation_counter = 0
 
-    def __init__(self, name, head, editable, populate_from, field, field_kwargs):
+    def __init__(self, name, head, editable, populate_from, valid_tags, field, field_kwargs):
         self.name = name
         self.head = head
         self.editable = editable
         self.populate_from = populate_from
+        # If valid_tags is a string, tags are space separated words
+        if isinstance(valid_tags, basestring):
+            valid_tags = valid_tags.split()
+        self.valid_tags = set(valid_tags)
         self.field = field or models.CharField
 
         if field_kwargs is None: field_kwargs = {}
@@ -124,9 +158,18 @@ class MetaDataField(object):
     def contribute_to_class(self, cls, name):
         if not self.name:
             self.name = name
+        self.validate()
+
+    def validate(self):
+        """ Discover certain illegal configurations """
+        if not self.editable:
+            assert self.populate_from is not NotSet, u"If field (%s) is not editable, you must set populate_from" % self.name
 
     def get_field(self):
         return self.field(**self.field_kwargs)
+
+    def clean(self, value):
+        return value
 
     def render(self, value):
         raise NotImplementedError
@@ -134,9 +177,10 @@ class MetaDataField(object):
 
 class Tag(MetaDataField):
     def __init__(self, name=None, head=False, escape_value=True,
-                       editable=True, verbose_name=None, max_length=511,
+                       editable=True, verbose_name=None, valid_tags=None, max_length=511,
                        populate_from=NotSet, field=models.CharField, 
                        field_kwargs=None, help_text=None):
+
         self.escape_value = escape_value
         if field_kwargs is None: 
             field_kwargs = {}
@@ -145,18 +189,22 @@ class Tag(MetaDataField):
         field_kwargs.setdefault('help_text', None)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
-        super(Tag, self).__init__(name, head, editable, populate_from, field, field_kwargs)
+        super(Tag, self).__init__(name, head, editable, populate_from, valid_tags, field, field_kwargs)
 
-    def render(self, value):
+    def clean(self, value):
         if self.escape_value:
             value = conditional_escape(value)
-        name = conditional_escape(name).replace(' ', '')
-        return mark_safe(u'<%s>%s</%s>' % (name, value, name))
+        return mark_safe(value.strip())
 
+    def render(self, value):
+        return u'<%s>%s</%s>' % (self.name, value, self.name)
+
+
+VALID_META_NAME = re.compile(r"[A-z][A-z0-9_:.-]*$")
 
 class MetaTag(MetaDataField):
     def __init__(self, name=None, head=True, verbose_name=None, editable=True, 
-                       populate_from=NotSet, max_length=511, field=models.CharField,
+                       populate_from=NotSet, valid_tags=None, max_length=511, field=models.CharField,
                        field_kwargs=None, help_text=None):
         if field_kwargs is None: 
             field_kwargs = {}
@@ -165,33 +213,55 @@ class MetaTag(MetaDataField):
         field_kwargs.setdefault('help_text', None)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
-        super(MetaTag, self).__init__(name, head, editable, populate_from, field, field_kwargs)
+
+        if name is not None:
+            assert VALID_META_NAME.match(name) is not None, u"Invalid name for MetaTag: '%s'" % name
+
+        super(MetaTag, self).__init__(name, head, editable, populate_from, valid_tags, field, field_kwargs)
+
+    def clean(self, value):
+        return value.replace('"', '&#34;').replace("\n", " ").strip()
 
     def render(self, value):
-        # TODO: HTML/XHTML? Use template?
-        value = value.replace('"', '&#34;')
-        name = self.name.replace('"', '&#34;')
-        return mark_safe(u'<meta name="%s" content="%s" />' % (name, value))
+        # TODO: HTML/XHTML?
+        return mark_safe(u'<meta name="%s" content="%s" />' % (self.name, value))
+
+class KeywordTag(MetaTag):
+    def __init__(self, name=None, head=True, verbose_name=None, editable=True, 
+                       populate_from=NotSet, valid_tags=None, max_length=511, field=models.CharField,
+                       field_kwargs=None, help_text=None):
+        if name is None:
+            name = "keywords"
+        if valid_tags is None:
+            valid_tags = []
+        super(KeywordTag, self).__init__(name, head, verbose_name, editable, 
+                        populate_from, valid_tags, max_length, field, 
+                        field_kwargs, help_text)
+
+    def clean(self, value)
+        return value.replace('"', '&#34;').replace("\n", ", ").strip()
 
 
 class Raw(MetaDataField):
     def __init__(self, head=True, editable=True, populate_from=NotSet, 
                     verbose_name=None, valid_tags=None, field=models.TextField,
                     field_kwargs=None, help_text=None):
-        self.valid_tags = valid_tags
         if field_kwargs is None: 
             field_kwargs = {}
         field_kwargs.setdefault('help_text', None)
         field_kwargs.setdefault('verbose_name', verbose_name)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
-        super(Raw, self).__init__(None, head, editable, populate_from, field, field_kwargs)
+        super(Raw, self).__init__(None, head, editable, populate_from, valid_tags, field, field_kwargs)
 
-    def render(self, value):
+    def clean(self, value):
         # TODO: escape/strip all but self.valid_tags
         if self.head:
-            value = strip_for_head(value)
+            value = strip_tags(value, VALID_HEAD_TAGS)
         return mark_safe(value)
+
+    def render(self, value):
+        return value
 
 
 
@@ -244,8 +314,7 @@ class MetaDataBase(type):
         # Validation:
         # Check that no group names clash with element names
         for key in groups:
-            if key in elements:
-                raise Exception("Group name '%s' clashes with field name" % key)
+            assert key not in elements, "Group name '%s' clashes with field name" % key
 
         # Preprocessing complete, here is the new class
         new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
@@ -291,7 +360,7 @@ class MetaDataBase(type):
             app_label = None # TODO
         fields['Meta'] = BaseMeta
         if use_sites: # and Site.objects.is_installed():
-            fields['site'] = models.ForeignKey('contenttypes.Site', default=settings.SITE_ID)
+            fields['site'] = models.ForeignKey('contenttypes.Site', default=settings.SITE_ID, null=True, blank=True)
         fields['__module__'] = attrs['__module__']
         MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
 

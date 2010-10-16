@@ -15,7 +15,7 @@ except ImportError:
     BeautifulSoup = None
 
 
-class LinkedObjects(TestCase):
+class ModelInstanceMetaData(TestCase):
     """ Checks the flow of data betwee a linked object and its meta data. """
 
     def setUp(self):
@@ -36,91 +36,28 @@ class LinkedObjects(TestCase):
         self.category_content_type = ContentType.objects.get_for_model(Category)
         self.category_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.category_content_type, object_id=self.category.id)
 
-    def test_population(self):
-        """ Checks that the meta data object is populated with the object's data at the beginning. 
-        """
-        self.assertEqual(self.product_meta_data.title, "Product Meta Title")
-        self.assertEqual(self.product_meta_data.description, "Product Meta Description")
-        self.assertEqual(self.product_meta_data.keywords, "Product Meta Keywords")
-        self.assertEqual(self.product_meta_data.heading, "Product Meta Title")
-        self.assertEqual(self.page_meta_data.title, "Page Title")
-        self.assertEqual(self.page_meta_data.heading, "Page Title")
-        self.assertEqual(self.category_meta_data.title, "M Category Page Title")
-
-    def test_update(self):
-        """ Checks that the meta data object is populated with the object's data when the object is updated.
-        """
-        # Update the product object
-        self.product.meta_title = "New Product Meta Title"
-        self.product.meta_description = "New Product Meta Description"
-        self.product.meta_keywords = "New Product Meta Keywords"
-        self.product.save()
-
-        # Explicit fields are updated.
-        product_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.product_content_type, object_id=self.product.id)
-        self.assertEqual(product_meta_data.title, "New Product Meta Title")
-        self.assertEqual(product_meta_data.description, "New Product Meta Description")
-        self.assertEqual(product_meta_data.keywords, "New Product Meta Keywords")
-        self.assertEqual(product_meta_data.heading, "Product Meta Title")
-
-        # Update the page object
-        self.page.title = "New Page Title"
-        self.page.save()
-
-        # Non explicit fields are not updated.
-        page_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.page_content_type, object_id=self.product.id)
-        self.assertEqual(page_meta_data.title, "Page Title")
-        self.assertEqual(page_meta_data.heading, "Page Title")
-
-    def test_backport(self):
-        """ Checks that changes to the meta data are passed back to 
-            denormalised fields on the object. 
-        """
-        # "meta_title" field is not updated
-        self.product_meta_data.title = "New Product Title"
-        self.product_meta_data.save()
-        product = Product.objects.get(id=self.product.id)
-        self.assertEqual(product.meta_title, "New Product Title")
-
-        # "title" field is not updated
-        self.page_meta_data.title = "New Page Title"
-        self.page_meta_data.save()
-        page = Page.objects.get(id=self.page.id)
-        self.assertEqual(page.title, "Page Title")
-
-    def test_adoption(self):
-        """ Check that an existing meta data object is adopted by a 
-            new model instance.
-        """
-        # Create a meta data object manually
-        meta_data = Coverage.ModelInstanceMetaData.objects.create(path="/products/2/", title="Old Title", keywords="Old Keywords")
-        self.assertEqual(meta_data.object_id, None)
-        num_data = Coverage.ModelInstanceMetaData.objects.all().count()
-
-        # Create new product with the same path as the existing meta data
-        product = Product.objects.create(meta_title="New Title")
-
-        # Check that the existing meta data object was adopted
-        self.assertEqual(Coverage.ModelInstanceMetaData.objects.all().count(), num_data)
-        meta_data = Coverage.ModelInstanceMetaData.objects.get(path="/products/2/")
-        self.assertEqual(meta_data.title, "New Title")
-        self.assertEqual(meta_data.keywords, "Old Keywords")
-        self.assertEqual(meta_data.object_id, 2)
-
-    def test_chaos(self):
+    def test_path_conflict(self):
         """ Check the crazy scenario where an existing meta data object has the same path. """
+        old_path = self.product_meta_data.path
         self.product_meta_data.path = '/products/2/'
         self.product_meta_data.save()
         self.assertEqual(self.product_meta_data.object_id, 1)
+
+        # Create a new product that will take the same path
         product = Product.objects.create(meta_title="New Title")
+
         # This test will not work if we have the id wrong
         if product.id != 2:
             raise Exception("Test Error: the product ID is not as expected, this test cannot work.")
+
+        # Check that the existing path was corrected
         product_meta_data = Coverage.ModelInstanceMetaData.objects.get(id=self.product_meta_data.id)
-        meta_data = Coverage.ModelInstanceMetaData.objects.get(path="/products/2/")
+        self.assertEqual(old_path, product_meta_data.path)
+
+        # Check the new data is available under the correct path
+        meta_data = get_meta_data(path="/products/2/")
         self.assertEqual(meta_data.title, u"New Title")
         self.assertEqual(meta_data.keywords, u"")
-        self.assertEqual(meta_data.object_id, 2)
 
     def test_useful_error_messages(self):
         """ Tests that the system gracefully handles a developer error 
@@ -164,7 +101,8 @@ class LinkedObjects(TestCase):
         self.assertEqual(Coverage.ModelInstanceMetaData.objects.all().count(), num_meta_data - 1)
         self.assertEqual(Coverage.ModelInstanceMetaData.objects.filter(path=old_path).count(), 0)
 
-class ContentTypes(TestCase):
+
+class ModelMetaData(TestCase):
     """ A set of unit tests that check the usage of content types. """
 
     def setUp(self):
@@ -206,7 +144,7 @@ class ContentTypes(TestCase):
 
 from django.core.urlresolvers import reverse
 
-class ViewBasedMetaData(TestCase):
+class ViewMetaData(TestCase):
     """ A set of unit tests to check the operateion of view selected meta data. """
 
     def setUp(self):
@@ -249,8 +187,10 @@ class Formatting(TestCase):
                 heading     = "The <em>Heading</em>",
                 keywords    = 'Some, keywords", with\n other, chars\'',
                 description = "A \n description with \" interesting\' chars.",
-                raw1       = '<meta name="author" content="seo" /><hr /> ' 
-                              'No text outside tags please.')
+                raw1        = '<meta name="author" content="seo" /><hr /> ' 
+                              'No text outside tags please.',
+                raw2        = '<meta name="author" content="seo" />'
+                              '<script>make_chaos();</script>')
         meta_data.save()
 
         self.meta_data = get_meta_data(path="/")
@@ -275,24 +215,35 @@ class Formatting(TestCase):
     def test_description(self):
         """ Tests the tag2 is cleaned correctly. """
         exp = "A   description with &#34; interesting' chars."
-        self.assertEqual(self.meta_data.description, exp)
+        self.assertEqual(self.meta_data.description.value, exp)
+        exp = '<meta name="hs:metatag" content="%s" />' % exp
+        self.assertEqual(unicode(self.meta_data.description), exp)
 
     def test_keywords(self):
         """ Tests keywords are cleaned correctly. """
-        exp = "Some, keywords&#34;, with,  other, chars'"
-        self.assertEqual(self.meta_data.keywords, exp)
+        # TODO: Add a "KeywordMetaTagField" that converts "\n" to "," 
+        # and has useful admin features
+        #exp = "Some, keywords&#34;, with,  other, chars'"
+        exp = "Some, keywords&#34;, with  other, chars'"
+        self.assertEqual(self.meta_data.keywords.value, exp)
+        exp = '<meta name="keywords" content="%s" />' % exp
+        self.assertEqual(unicode(self.meta_data.keywords), exp)
 
     def test_title(self):
         """ Tests the title is cleaned correctly. """
         exp = 'The <strong>Title</strong>'
-        self.assertEqual(self.meta_data.title, exp)
+        self.assertEqual(self.meta_data.title.value, exp)
+        exp = '<meta name="title" content="%s" />' % exp
+        self.assertEqual(unicode(self.meta_data.title), exp)
 
     def test_heading(self):
         """ Tests the heading is cleaned correctly. """
         exp = 'The <em>Heading</em>'
-        self.assertEqual(self.meta_data.heading, exp)
+        self.assertEqual(self.meta_data.heading.value, exp)
+        exp = '<meta name="hs:tag" content="%s" />' % exp
+        self.assertEqual(unicode(self.meta_data.heading), exp)
 
-    def test_raw(self):
+    def test_raw1(self):
         """ Tests the extras attribute is cleaned correctly. 
             Thorough cleaning is done when BeautifulSoup is available.
         """
@@ -301,7 +252,19 @@ class Formatting(TestCase):
         else:
             exp = ('<meta name="author" content="seo" /><hr />'
                   ' No text outside tags please.')
-        self.assertEqual(self.meta_data.raw1, exp)
+        self.assertEqual(self.meta_data.raw1.value, exp)
+        self.assertEqual(unicode(self.meta_data.raw1), exp)
+
+    def test_raw2(self):
+        """ Tests the extras attribute is cleaned correctly. 
+            Thorough cleaning is done when BeautifulSoup is available.
+        """
+        if BeautifulSoup:
+            exp = '<meta name="author" content="seo" />'
+        else:
+            exp = ('<meta name="author" content="seo" /><script>make_chaos();</script>')
+        self.assertEqual(self.meta_data.raw1.value, exp)
+        self.assertEqual(unicode(self.meta_data.raw1), exp)
 
 
 class Random(TestCase):
@@ -310,9 +273,9 @@ class Random(TestCase):
     def setUp(self):
         self.page = Page.objects.create(type="abc")
         self.content_type = ContentType.objects.get_for_model(Page)
-        self.meta_data = MetaData.objects.get(content_type=self.content_type,
+        self.meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.content_type,
                                                     object_id=self.page.id)
-        self.context = self.meta_data.formatted
+        self.context = get_meta_data(path=self.meta_data.path)
 
     def test_default_fallback(self):
         """ Tests the ability to use the current Site name as a default 
@@ -326,28 +289,17 @@ class Random(TestCase):
         " Checks that lookups work where the category meta data is  missing "
         try:
             self.context.title
-        except MetaData.DoesNotExist:
+        except Coverage.ModelInstanceMetaData.DoesNotExist:
             self.fail("MetaData.DoesNotExist raised inappropriately.")
-
-    def test_unicode_representation(self):
-        " Checks the unicode representation of a MetaData object. "
-        self.page.title = "How to recognise this page"
-        self.page.save()
-        meta_data = MetaData.objects.get(id=self.meta_data.id)
-        self.assertEqual(unicode(meta_data), self.page.title)
-
-    def test_get_absolute_url(self):
-        " Checks the get_absolute_url() method of a MetaData object. "
-        self.assertEqual(self.meta_data.get_absolute_url(), self.page.get_absolute_url())
 
     def test_missing_path(self):
         " Checks that a model with a missing path is gracefully ignored. "
-        num_meta_data = MetaData.objects.all().count()
+        num_meta_data = Coverage.ModelInstanceMetaData.objects.all().count()
         try:
             no_path = NoPath.objects.create()
         except Exception, e:
             self.fail("Exception inappropriately raised: %r" % e)
-        new_num_meta_data = MetaData.objects.all().count()
+        new_num_meta_data = Coverage.ModelInstanceMetaData.objects.all().count()
         self.assertEqual(num_meta_data, new_num_meta_data)
 
     def test_contenttypes_admin(self):
@@ -356,7 +308,7 @@ class Random(TestCase):
         from django.http import HttpRequest
         from django.contrib.admin import site
         request = HttpRequest()
-        form = MetaDataAdmin(MetaData, site).get_form(request)()
+        form = MetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
         assert 'site</option>' not in form.as_table(), form.as_table()
 
     def test_view_admin(self):
@@ -365,7 +317,7 @@ class Random(TestCase):
         from django.http import HttpRequest
         from django.contrib.admin import site
         request = HttpRequest()
-        form = ViewMetaDataAdmin(ViewMetaData, site).get_form(request)()
+        form = ViewMetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
         assert '<option value="userapp_my_view">userapp my view</option>' in form.as_table(), form.as_table()
 
     def test_clean_extra(self):
