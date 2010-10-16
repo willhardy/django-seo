@@ -3,6 +3,7 @@
 # TODO:
 #    * ViewMetaData needs to resolve variables
 #    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
+#    * Add unique constraints for models with/without sites support
 #    * Admin!
 #    * Tests!
 #    * Documentation
@@ -11,6 +12,7 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.datastructures import SortedDict
+from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.conf import settings
@@ -112,23 +114,33 @@ class BoundMetaDataField(object):
         return self.__unicode__().encode("ascii", "ignore")
 
 
-class PathMetaDataManager(models.Manager):
-    def get_from_path(self, path):
-        return self.get_query_set().get(path=path)
+class MetaDataManager(models.Manager):
+    def on_current_site():
+        queryset = super(MetaDataManager, self).get_query_set()
+        # If we are using sites, exclude irrelevant data
+        if self.model._meta_data.use_sites:
+            current_site = Site.objects.get_current()
+            # Exclude entries for other sites, keep site=current and site=null
+            queryset = queryset.exclude(~models.Q(site=current_site))
+        return queryset
 
-class ModelMetaDataManager(models.Manager):
+class PathMetaDataManager(MetaDataManager):
+    def get_from_path(self, path):
+        return self.on_current_site().get(path=path)
+
+class ModelMetaDataManager(MetaDataManager):
     def get_from_content_type(self, content_type):
-        return self.get_query_set().get(content_type=content_type)
+        return self.on_current_site().get(content_type=content_type)
 
-class ModelInstanceMetaDataManager(models.Manager):
+class ModelInstanceMetaDataManager(MetaDataManager):
     def get_from_path(self, path):
-        return self.get_query_set().get(path=path)
+        return self.on_current_site().get(path=path)
 
-class ViewMetaDataManager(models.Manager):
+class ViewMetaDataManager(MetaDataManager):
     def get_from_path(self, path):
         view_name = resolve_to_name(path)
         if view_name is not None:
-            return self.get_query_set().get(view=view_name)
+            return self.on_current_site().get(view=view_name)
         raise self.model.DoesNotExist()
 
 class MetaDataBase(type):
@@ -214,7 +226,7 @@ class MetaDataBase(type):
         # TODO Move the definitions for each particular class to another module and mixin.
         # 1. Path-based model
         class PathMetaData(MetaDataBaseModel):
-            path = models.CharField(_('path'), max_length=511, unique=True)
+            path = models.CharField(_('path'), max_length=511)
             objects = PathMetaDataManager()
             _meta_data = new_class
 
@@ -225,7 +237,7 @@ class MetaDataBase(type):
 
         # 2. Model-based model
         class ModelMetaData(MetaDataBaseModel):
-            content_type   = models.ForeignKey(ContentType, null=True, blank=True, unique=True,
+            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
                                         limit_choices_to={'id__in': get_seo_content_types()})
             objects = ModelMetaDataManager()
             _meta_data = new_class
@@ -253,7 +265,7 @@ class MetaDataBase(type):
 
         # 3. Model-instance-based model
         class ModelInstanceMetaData(MetaDataBaseModel):
-            path           = models.CharField(_('path'), max_length=511, unique=True)
+            path           = models.CharField(_('path'), max_length=511)
             content_type   = models.ForeignKey(ContentType, null=True, blank=True,
                                         limit_choices_to={'id__in': get_seo_content_types()})
             object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
@@ -269,7 +281,7 @@ class MetaDataBase(type):
 
         # 4. View-based model
         class ViewMetaData(MetaDataBaseModel):
-            view = SystemViewField(blank=True, null=True, unique=True)
+            view = SystemViewField(blank=True, null=True)
             objects = ViewMetaDataManager()
             _meta_data = new_class
 

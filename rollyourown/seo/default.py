@@ -57,7 +57,7 @@ class DefaultMetaData(seo.MetaData):
 
 """ The Following is then created:
 
-    DEFINITION
+    DEFINITION (write test for each case)
     + if "head" is True, tag is automatically included in the head
     + if "name" is included, that is the name of the given tag, otherwise, the field name is used
     + if verbose_name is used, pass on to field (through field_kwargs)
@@ -70,8 +70,8 @@ class DefaultMetaData(seo.MetaData):
         + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
 
     META OPTIONS
-    - groups: these elements are grouped together in both the admin and the outputted meta (otherwise ordering is the same as in the definition)
-    - use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
+    + groups: these elements are grouped together in the admin and can be output together in the template
+    + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
     - models: list of models and/or apps which are available for model instance meta data
     - (FUTURE: verbose_name(_plural): this is passed onto Django)
     - HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
@@ -84,12 +84,12 @@ class DefaultMetaData(seo.MetaData):
         3) literal value
     - if no text is found, a more general meta data entry is searched for (ordering is Path->ModelInstance->Model->View)
 
-    FORMATTING (write tests for each cose)
+    FORMATTING
     - tags that are not in valid_tags are removed (valid tags can be a space separated string or list, see code for defaults)
     - meta tags are encoded to avoid wayward '"', '&' etc
     - keyword tags are converted to be a comma-separated list
 
-    TEMPLATES (write test for each case)
+    TEMPLATES
     - {% get_metadata %} without arguments outputs the head elements
     - {% get_metadata as metadata %} stores the accessor as a variable
     - {% metadata %} outputs all the head elements
