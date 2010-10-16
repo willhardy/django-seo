@@ -63,7 +63,7 @@ class DefaultMetaData(seo.MetaData):
     + if verbose_name is used, pass on to field (through field_kwargs)
     + if the field argument given, that Django field type is used
     + if editable is set to False, no Django model field is created. The value is always from populate_from
-    - if choices is given it is passed onto the field, (expanded if just a list of strings)
+    + if choices is given it is passed onto the field, (expanded if just a list of strings)
     + If help_text used, this is passed onto the field
         + the populate_from of the field is sometimes mentioned automatically in the help_text:
         + if populate_from value is a field name: "If empty, {{ field_name }} will be used"
