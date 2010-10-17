@@ -18,14 +18,19 @@
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
-from rollyourown.seo import get_meta_data
+from django.contrib.sites.models import Site
+from django.conf import settings
 try:
     import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
 
+from rollyourown.seo import get_meta_data as seo_get_meta_data
 from userapp.models import Page, Product, Category, NoPath
-from userapp.seo import Coverage
+from userapp.seo import Coverage, WithSites
+
+def get_meta_data(path):
+    return seo_get_meta_data(path, name="Coverage")
 
 
 class DataSelection(TestCase):
@@ -41,22 +46,89 @@ class DataSelection(TestCase):
     """
 
     def setUp(self):
-
-        self.product = Product(meta_title="Product Meta Title", 
-                                meta_description="Product Meta Description", 
-                                meta_keywords="Product Meta Keywords")
-        
-        self.product.save()
+        # Model instance meta data
+        self.product = Product.objects.create()
         self.product_content_type = ContentType.objects.get_for_model(Product)
+        # NB if signals aren't working, the following will fail.
         self.product_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.product_content_type, object_id=self.product.id)
+        self.product_meta_data.title="ModelInstance title"
+        self.product_meta_data.keywords="ModelInstance keywords"
+        self.product_meta_data.save()
 
         self.page = Page.objects.create(title=u"Page Title", type="abc")
         self.page_content_type = ContentType.objects.get_for_model(Page)
         self.page_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id)
+        self.page_meta_data.title="Page title"
+        self.page_meta_data.keywords="Page keywords"
+        self.page_meta_data.save()
 
-        self.category = Category.objects.create()
-        self.category_content_type = ContentType.objects.get_for_model(Category)
-        self.category_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.category_content_type, object_id=self.category.id)
+        # Model meta data
+        self.model_meta_data = Coverage.ModelMetaData.objects.create(content_type=self.product_content_type, title="Model title", keywords="Model keywords")
+
+        # Path meta data
+        self.path_meta_data = Coverage.PathMetaData.objects.create(path="/path/", title="Path title", keywords="Path keywords")
+
+        # View meta data
+        self.view_meta_data = Coverage.ViewMetaData.objects.create(view="userapp_my_view", title="View title", keywords="View keywords")
+
+    def test_path(self):
+        """ Checks that a direct path listing is always found first. """
+        path = self.product.get_absolute_url()
+        self.assertNotEqual(get_meta_data(path).title.value, 'Path title')
+        self.assertEqual(get_meta_data(path).title.value, 'ModelInstance title')
+        self.path_meta_data.path = path
+        self.path_meta_data.save()
+        self.assertEqual(get_meta_data(path).title.value, 'Path title')
+
+    def test_model_instance(self):
+        page = Page(title="Title", type="newpage")
+        path = page.get_absolute_url()
+        self.assertEqual(get_meta_data(path).title, None)
+
+        # Check that a new metadata instance is created
+        old_count = Coverage.ModelInstanceMetaData.objects.all().count()
+        page.save()
+        new_count = Coverage.ModelInstanceMetaData.objects.all().count()
+        self.assertEqual(new_count, old_count+1)
+
+        # Check that the correct data is loaded
+        assert 'New Page title' not in unicode(get_meta_data(path).title)
+        Coverage.ModelInstanceMetaData.objects.filter(content_type=self.page_content_type, object_id=page.id).update(title="New Page title")
+        self.assertEqual(get_meta_data(path).title.value, 'New Page title')
+
+    def test_model(self):
+        path = self.product.get_absolute_url()
+
+        # Model meta data only works if there is no instance meta data
+        self.assertEqual(get_meta_data(path).title.value, 'ModelInstance title')
+
+        # Remove the instance meta data
+        self.product_meta_data.title = ''
+        self.product_meta_data.save()
+        self.assertEqual(get_meta_data(path).title.value, 'Model title')
+
+    def test_view(self):
+        path = '/my/view/text/'
+        path_meta_data = Coverage.PathMetaData.objects.create(path=path, title="Path title")
+        self.assertEqual(get_meta_data(path).title.value, 'Path title')
+        path_meta_data.delete()
+        self.assertEqual(get_meta_data(path).title.value, 'View title')
+
+    def test_sites(self):
+        path = "/abc/"
+        # TODO: Create a new MetaData object that users sites (WithSites)
+        site = Site.objects.get_current()
+        path_meta_data = WithSites.PathMetaData.objects.create(site=site, title="Site Path title", path=path)
+        self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, 'Site Path title')
+        # Meta data with site=null should work
+        path_meta_data.site_id = None
+        path_meta_data.save()
+        self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, 'Site Path title')
+        # Meta data with an explicitly wrong site should not work
+        path_meta_data.site_id = site.id + 1
+        path_meta_data.save()
+        # [l.__dict__ for l in seo_get_meta_data(path, name="WithSites")._FormattedMetaData__instances()]
+        self.assertEqual(seo_get_meta_data(path, name="WithSites").title, None)
 
     def test_path_conflict(self):
         """ Check the crazy scenario where an existing meta data object has the same path. """
@@ -66,10 +138,11 @@ class DataSelection(TestCase):
         self.assertEqual(self.product_meta_data.object_id, 1)
 
         # Create a new product that will take the same path
-        product = Product.objects.create(meta_title="New Title")
+        new_product = Product.objects.create()
+        Coverage.ModelInstanceMetaData.objects.filter(content_type=self.product_content_type, object_id=new_product.id).update(title="New Title")
 
         # This test will not work if we have the id wrong
-        if product.id != 2:
+        if new_product.id != 2:
             raise Exception("Test Error: the product ID is not as expected, this test cannot work.")
 
         # Check that the existing path was corrected
@@ -78,8 +151,7 @@ class DataSelection(TestCase):
 
         # Check the new data is available under the correct path
         meta_data = get_meta_data(path="/products/2/")
-        self.assertEqual(meta_data.title, u"New Title")
-        self.assertEqual(meta_data.keywords, u"")
+        self.assertEqual(meta_data.title.value, u"New Title")
 
     def test_useful_error_messages(self):
         """ Tests that the system gracefully handles a developer error 
@@ -114,6 +186,8 @@ class DataSelection(TestCase):
         meta_data_1 = Coverage.ModelInstanceMetaData.objects.get(path=self.page.get_absolute_url())
         meta_data_2 = Coverage.ModelInstanceMetaData.objects.get(content_type=self.page_content_type, object_id=self.page.id)
         self.assertEqual(meta_data_1.id, meta_data_2.id)
+
+        self.assertEqual(get_meta_data(path=self.page.get_absolute_url()).title.value, 'Page title')
 
     def test_delete_object(self):
         """ Tests that an object can be deleted, and the meta data is deleted with it. """

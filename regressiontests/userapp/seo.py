@@ -1,6 +1,7 @@
 from rollyourown import seo
 from django.db import models
 
+
 class Coverage(seo.MetaData):
     """ A SEO meta data definition, which should cover all configurable options.
     """
@@ -46,3 +47,9 @@ class Coverage(seo.MetaData):
     class HelpText:
         help_text2 = "Updated help text2."
 
+
+class WithSites(seo.MetaData):
+    title        = seo.Tag()
+
+    class Meta:
+        use_sites = True

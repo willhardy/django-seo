@@ -14,18 +14,18 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.datastructures import SortedDict
+from django.utils.functional import curry
 from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
 from django.conf import settings
 
-from rollyourown.seo.modelmetadata import get_seo_content_types
-from rollyourown.seo.systemviews import SystemViewField
-from rollyourown.seo.utils import resolve_to_name, NotSet
+from rollyourown.seo.utils import NotSet
 
 from django.template import Template, Context
 from rollyourown.seo.fields import MetaDataField
 from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
+from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase
+from rollyourown.seo.meta_models import PathMetaDataManager, ModelMetaDataManager, ModelInstanceMetaDataManager, ViewMetaDataManager
 
 
 registry = SortedDict()
@@ -116,35 +116,6 @@ class BoundMetaDataField(object):
         return self.__unicode__().encode("ascii", "ignore")
 
 
-class MetaDataManager(models.Manager):
-    def on_current_site(self):
-        queryset = super(MetaDataManager, self).get_query_set()
-        # If we are using sites, exclude irrelevant data
-        if self.model._meta_data.use_sites:
-            current_site = Site.objects.get_current()
-            # Exclude entries for other sites, keep site=current and site=null
-            queryset = queryset.exclude(~models.Q(site=current_site))
-        return queryset
-
-class PathMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
-        return self.on_current_site().get(path=path)
-
-class ModelMetaDataManager(MetaDataManager):
-    def get_from_content_type(self, content_type):
-        return self.on_current_site().get(content_type=content_type)
-
-class ModelInstanceMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
-        return self.on_current_site().get(path=path)
-
-class ViewMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
-        view_name = resolve_to_name(path)
-        if view_name is not None:
-            return self.on_current_site().get(view=view_name)
-        raise self.model.DoesNotExist()
-
 class MetaDataBase(type):
     def __new__(cls, name, bases, attrs):
         # TODO: Think of a better test to avoid processing MetaData parent class
@@ -220,83 +191,17 @@ class MetaDataBase(type):
             verbose_name_plural = _('metadata')
             app_label = None # TODO
         fields['Meta'] = BaseMeta
-        if use_sites: # and Site.objects.is_installed():
-            fields['site'] = models.ForeignKey('contenttypes.Site', default=settings.SITE_ID, null=True, blank=True)
         fields['__module__'] = attrs['__module__']
         MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
 
-        # TODO Move the definitions for each particular class to another module and mixin.
-        # 1. Path-based model
-        class PathMetaData(MetaDataBaseModel):
-            path = models.CharField(_('path'), max_length=511)
-            objects = PathMetaDataManager()
-            _meta_data = new_class
-
-            class Meta:
-                verbose_name = _('path-based metadata')
-                verbose_name_plural = _('path-based metadata')
-                #app_label = None # TODO
-
-        # 2. Model-based model
-        class ModelMetaData(MetaDataBaseModel):
-            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types(new_class)})
-            objects = ModelMetaDataManager()
-            _meta_data = new_class
-
-            def _set_context(self, instance):
-                """ Use the given model instance as context for rendering 
-                    any substitutions. 
-                """
-                self.__instance = instance
-
-            def __getattribute__(self, name):
-                # Any values coming from elements should be parsed and resolved.
-                value = super(ModelMetaData, self).__getattribute__(name)
-                if (name in (f.name for f in super(ModelMetaData, self).__getattribute__('_meta').fields) 
-                    and '_ModelMetaData__instance' in super(ModelMetaData, self).__getattribute__('__dict__')):
-                    instance = super(ModelMetaData, self).__getattribute__('_ModelMetaData__instance')
-                    return _resolve(value, instance)
-                else: 
-                    return value
-
-            class Meta:
-                verbose_name = _('model-based metadata')
-                verbose_name_plural = _('model-based metadata')
-                # app_label = None # TODO
-
-        # 3. Model-instance-based model
-        class ModelInstanceMetaData(MetaDataBaseModel):
-            path           = models.CharField(_('path'), max_length=511)
-            content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types(new_class)})
-            object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
-            content_object = generic.GenericForeignKey('content_type', 'object_id')
-            objects = ModelInstanceMetaDataManager()
-            _meta_data = new_class
-
-            class Meta:
-                verbose_name = _('model-instance-based metadata')
-                verbose_name_plural = _('model-instance-based metadata')
-                unique_together = ('content_type', 'object_id')
-                # app_label = None # TODO
-
-        # 4. View-based model
-        class ViewMetaData(MetaDataBaseModel):
-            view = SystemViewField(blank=True, null=True)
-            objects = ViewMetaDataManager()
-            _meta_data = new_class
-
-            class Meta:
-                verbose_name = _('view-based metadata')
-                verbose_name_plural = _('view-based metadata')
-                # app_label = None # TODO
-
-        # TODO: Move these out of the way (subclasses will want to define their own attributes)
-        new_class.PathMetaData = PathMetaData
-        new_class.ModelMetaData = ModelMetaData
-        new_class.ModelInstanceMetaData = ModelInstanceMetaData
-        new_class.ViewMetaData = ViewMetaData
+        # TODO: Move these names out of the way (subclasses will want to define their own attributes)
+        new_md_attrs = {'_meta_data': new_class, '__module__': attrs['__module__']}
+        if use_sites: # and Site.objects.is_installed():
+            new_md_attrs['site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
+        new_class.PathMetaData = type("%sPathMetaData"%name, (PathMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
+        new_class.ModelMetaData = type("%sModelMetaData"%name, (ModelMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
+        new_class.ModelInstanceMetaData = type("%sModelInstanceMetaData"%name, (ModelInstanceMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
+        new_class.ViewMetaData = type("%sViewMetaData"%name, (ViewMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
 
         registry[name] = new_class
 
@@ -378,59 +283,61 @@ def _resolve(value, model_instance=None, context_instance=None):
     return value
 
 
+def _update_callback(model_class, sender, instance, created, **kwargs):
+    """ Callback to be attached to a post_save signal, updating the relevant
+        meta data, or just creating an entry. 
+    
+        NB:
+        It is theoretically possible that this code will lead to two instances
+        with the same generic foreign key.  If you have non-overlapping URLs,
+        then this shouldn't happen.
+        I've held it to be more important to avoid double path entries.
+    """
+    meta_data = None
+    content_type = ContentType.objects.get_for_model(instance)
+    
+    # If this object does not define a path, don't worry about automatic update
+    try:
+        path = instance.get_absolute_url()
+    except AttributeError:
+        return
+
+    try:
+        # Look for an existing object with this path
+        meta_data = model_class.objects.get_from_path(path)
+        # If another object has the same path, remove the path.
+        # It's harsh, but we need a unique path and will assume the other
+        # link is outdated.
+        if meta_data.content_type != content_type or meta_data.object_id != instance.pk:
+            meta_data.path = meta_data.content_object.get_absolute_url()
+            meta_data.save()
+            # Move on, this meta_data instance isn't for us
+            meta_data = None
+    except model_class.DoesNotExist:
+        pass
+    
+    # If the path-based search didn't work, look for (or create) an existing
+    # instance linked to this object.
+    if not meta_data:
+        meta_data, md_created = model_class.objects.get_or_create(content_type=content_type, object_id=instance.pk)
+        meta_data.path = path
+        meta_data.save()
+    
+    # XXX Update the MetaData instance with data from the object
+    
+def _delete_callback(model_class, sender, instance,  **kwargs):
+    content_type = ContentType.objects.get_for_model(instance)
+    try:
+        model_class.objects.get(content_type=content_type, object_id=instance.pk).delete()
+    except:
+        pass
+
+
 def register_signals():
     for meta_data_class in registry.values():
-        ModelInstanceMetaData = meta_data_class.ModelInstanceMetaData
+        update_callback = curry(_update_callback, model_class=meta_data_class.ModelInstanceMetaData)
+        delete_callback = curry(_delete_callback, model_class=meta_data_class.ModelInstanceMetaData)
 
-        def update_callback(sender, instance, created, **kwargs):
-            """ Callback to be attached to a post_save signal, updating the relevant
-                meta data, or just creating an entry. 
-    
-                NB:
-                It is theoretically possible that this code will lead to two instances
-                with the same generic foreign key.  If you have non-overlapping URLs,
-                then this shouldn't happen.
-                I've held it to be more important to avoid double path entries.
-            """
-            meta_data = None
-            content_type = ContentType.objects.get_for_model(instance)
-    
-            # If this object does not define a path, don't worry about automatic update
-            try:
-                path = instance.get_absolute_url()
-            except AttributeError:
-                return
-        
-            try:
-                # Look for an existing object with this path
-                meta_data = ModelInstanceMetaData.objects.get_from_path(path)
-                # If another object has the same path, remove the path.
-                # It's harsh, but we need a unique path and will assume the other
-                # link is outdated.
-                if meta_data.content_type != content_type or meta_data.object_id != instance.pk:
-                    meta_data.path = meta_data.content_object.get_absolute_url()
-                    meta_data.save()
-                    # Move on, this meta_data instance isn't for us
-                    meta_data = None
-            except ModelInstanceMetaData.DoesNotExist:
-                pass
-    
-            # If the path-based search didn't work, look for (or create) an existing
-            # instance linked to this object.
-            if not meta_data:
-                meta_data, md_created = ModelInstanceMetaData.objects.get_or_create(content_type=content_type, object_id=instance.pk)
-                meta_data.path = path
-                meta_data.save()
-    
-            # XXX Update the MetaData instance with data from the object
-    
-        def delete_callback(sender, instance,  **kwargs):
-            content_type = ContentType.objects.get_for_model(instance)
-            try:
-                ModelInstanceMetaData.objects.get(content_type=content_type, object_id=instance.pk).delete()
-            except:
-                pass
-    
         ## Connect the models listed in settings to the update callback.
         for model in meta_data_class._get_seo_models():
             models.signals.post_save.connect(update_callback, sender=model, weak=False)
