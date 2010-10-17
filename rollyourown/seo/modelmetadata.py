@@ -2,19 +2,18 @@
 # -*- coding: UTF-8 -*-
 
 from django.utils.functional import lazy
-from rollyourown.seo.utils import get_seo_models
 from django.db.utils import DatabaseError
 
-def _get_seo_content_types():
+def _get_seo_content_types(meta_data_class):
     """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
     try:
         from django.contrib.contenttypes.models import ContentType
-        return [ ContentType.objects.get_for_model(m).id for m in get_seo_models() ]
+        return [ ContentType.objects.get_for_model(m).id for m in meta_data_class._get_seo_models() ]
     except DatabaseError:
         # Return an empty list if this is called too early
         return []
-def get_seo_content_types():
-    return lazy(_get_seo_content_types, list)()
+def get_seo_content_types(meta_data_class):
+    return lazy(_get_seo_content_types, list)(meta_data_class)
 
 
 from django import forms

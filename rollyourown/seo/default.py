@@ -55,9 +55,9 @@ class DefaultMetaData(seo.MetaData):
         #og_title   = "Title for facebook"
 
 
-""" The Following is then created:
+""" The Following is then created: (write test for each case)
 
-    DEFINITION (write test for each case)
+    DEFINITION
     + if "head" is True, tag is automatically included in the head
     + if "name" is included, that is the name of the given tag, otherwise, the field name is used
     + if verbose_name is used, pass on to field (through field_kwargs)
@@ -72,9 +72,9 @@ class DefaultMetaData(seo.MetaData):
     META OPTIONS
     + groups: these elements are grouped together in the admin and can be output together in the template
     + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
-    - models: list of models and/or apps which are available for model instance meta data
+    + models: list of models and/or apps which are available for model instance meta data
     - (FUTURE: verbose_name(_plural): this is passed onto Django)
-    - HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
+    + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
 
     VALUE RESOLUTION
     - if text is missing from a given meta data entry, populate_from is used
@@ -82,21 +82,23 @@ class DefaultMetaData(seo.MetaData):
         1) callable
         2) name of field/callable on metadata object
         3) literal value
-    - if no text is found, a more general meta data entry is searched for (ordering is Path->ModelInstance->Model->View)
+    + if no text is found, a more general meta data entry is searched for (ordering is Path->ModelInstance->Model->View)
+    + if ModelInstanceMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the relevant model instance
+    - if ViewMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the view's context
 
     FORMATTING
-    - tags that are not in valid_tags are removed (valid tags can be a space separated string or list, see code for defaults)
-    - meta tags are encoded to avoid wayward '"', '&' etc
-    - keyword tags are converted to be a comma-separated list
+    + tags that are not in valid_tags are removed (valid tags can be a space separated string or list, see code for defaults)
+    + meta tags are encoded to avoid wayward quote: " (FUTURE '&' '<' etc?)
+    + keyword tags are converted to be a comma-separated list
 
     TEMPLATES
-    - {% get_metadata %} without arguments outputs the head elements
-    - {% get_metadata as metadata %} stores the accessor as a variable
-    - {% metadata %} outputs all the head elements
-    - {% metadata.groupname %} outputs all the elements in given group
-    - {% metadata.fieldname %} outputs a single element (full tag)
-    - {% metadata.fieldname.value %} outputs only the value from a single element
-    - {% metadata.fieldname.field.name %} outputs the element's name etc
+    + {% get_metadata %} without arguments outputs the head elements
+    + {% get_metadata as metadata %} stores the accessor as a variable
+    + {% metadata %} outputs all the head elements
+    + {% metadata.groupname %} outputs all the elements in given group
+    + {% metadata.fieldname %} outputs a single element (full tag)
+    + {% metadata.fieldname.value %} outputs only the value from a single element
+    + {% metadata.fieldname.field.name %} outputs the element's name etc
 
 
 USAGE:

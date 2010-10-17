@@ -41,7 +41,7 @@ class MetaDataField(object):
             valid_tags = valid_tags.split()
         if valid_tags is not None:
             valid_tags = set(valid_tags)
-        self.valid_tags = valid_Tags
+        self.valid_tags = valid_tags
 
         if field_kwargs is None: field_kwargs = {}
         self.field_kwargs = field_kwargs
@@ -134,7 +134,7 @@ class KeywordTag(MetaTag):
                         populate_from, valid_tags, max_length, choices, field, 
                         field_kwargs, help_text)
 
-    def clean(self, value)
+    def clean(self, value):
         # Remove double quote, replace newlines with commas
         return value.replace('"', '&#34;').replace("\n", ", ").strip()
 

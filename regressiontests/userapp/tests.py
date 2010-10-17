@@ -1,22 +1,44 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
+""" Test suite for SEO framework.
+
+    It is divided into 7 sections:
+
+    * Data selection (Unit tests)
+    * Value resolution (Unit tests)
+    * Formatting (Unit tests)
+    * Definition (System tests)
+    * Meta options (System tests)
+    * Templates (System tests)
+    * Random (series of various uncategorised tests)
+
 """
 
+from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
-from userapp.models import Page, Product, Category, NoPath
-from userapp.seo import Coverage
 from rollyourown.seo import get_meta_data
 try:
     import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
 
+from userapp.models import Page, Product, Category, NoPath
+from userapp.seo import Coverage
 
-class ModelInstanceMetaData(TestCase):
-    """ Checks the flow of data betwee a linked object and its meta data. """
+
+class DataSelection(TestCase):
+    """ Data selection (unit tests). Test how meta_data objects are discovered.
+        - path-meta-data found by path, always first place to find meta data
+        - model-instance-meta-data found by get_absolute_url path on instance
+            - entry is automatically created when the (relevant) instance is edited
+        - model-meta-data is used for generic data when model instance fails
+        - view-meta-data used when nothing else matches
+        - site selection
+            - data explicitly for other sites is ignored.
+            - data explicitly for current site beats generic (site=null) data
+    """
 
     def setUp(self):
 
@@ -102,9 +124,17 @@ class ModelInstanceMetaData(TestCase):
         self.assertEqual(Coverage.ModelInstanceMetaData.objects.filter(path=old_path).count(), 0)
 
 
-class ModelMetaData(TestCase):
-    """ A set of unit tests that check the usage of content types. """
-
+class ValueResolution(TestCase):
+    """ Value resolution (unit tests)
+        - if text is missing from a given meta data entry, populate_from is used
+        + populate_from is resolved: 
+            1) callable
+            2) name of field/callable on metadata object
+            3) literal value
+        + if no text is found, a more general meta data entry is searched for (ordering is Path->ModelInstance->Model->View)
+        + if ModelInstanceMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the relevant model instance
+        - if ViewMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the view's context
+    """
     def setUp(self):
         self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page-one-type", content=u"Page one content.")
         self.page2 = Page.objects.create(type=u"page-two-type", content=u"Page two content.")
@@ -125,6 +155,13 @@ class ModelMetaData(TestCase):
         self.context1 = get_meta_data(path=self.page1.get_absolute_url())
         self.context2 = get_meta_data(path=self.page2.get_absolute_url())
 
+        self.view_meta_data = Coverage.ViewMetaData.objects.create(view="userapp_my_view")
+        self.view_meta_data.title = "MD {{ text }} Title"
+        self.view_meta_data.keywords = "MD {{ text }} Keywords"
+        self.view_meta_data.description = "MD {{ text }} Description"
+        self.view_meta_data.save()
+
+
     def test_direct_data(self):
         """ Check data is used directly when it is given. """
         self.assertEqual(self.context1.keywords, u'MD Keywords')
@@ -141,19 +178,6 @@ class ModelMetaData(TestCase):
         self.assertEqual(self.context1.description, u'CMD Description for MD Page One Title and MD Page One Title')
         self.assertEqual(self.context2.description, u'CMD Description for Page two content. and Page two content.')
 
-
-from django.core.urlresolvers import reverse
-
-class ViewMetaData(TestCase):
-    """ A set of unit tests to check the operateion of view selected meta data. """
-
-    def setUp(self):
-        self.meta_data = Coverage.ViewMetaData.objects.create(view="userapp_my_view")
-        self.meta_data.title = "MD {{ text }} Title"
-        self.meta_data.keywords = "MD {{ text }} Keywords"
-        self.meta_data.description = "MD {{ text }} Description"
-        self.meta_data.save()
-
     def test_substitution(self):
         response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
         self.assertContains(response, u'<title>MD abc123 Title</title>')
@@ -162,24 +186,29 @@ class ViewMetaData(TestCase):
 
     def test_not_request_context(self):
         """ Tests the view meta data on a view that is not a request context. """
-        self.meta_data.view = "userapp_my_other_view"
-        self.meta_data.save()
+        self.view_meta_data.view = "userapp_my_other_view"
+        self.view_meta_data.save()
         response = self.client.get(reverse('userapp_my_other_view', args=["abc123"]))
         self.assertContains(response, u'<title>example.com</title>')
         self.assertContains(response, u'<meta name="keywords" content="" />')
         self.assertContains(response, u'<meta name="description" content="" />')
 
     def test_bad_or_old_view(self):
-        self.meta_data.view = "this_view_does_not_exist"
-        self.meta_data.save()
+        self.view_meta_data.view = "this_view_does_not_exist"
+        self.view_meta_data.save()
         response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
         self.assertContains(response, u'<title>example.com</title>')
         self.assertContains(response, u'<meta name="keywords" content="" />')
         self.assertContains(response, u'<meta name="description" content="" />')
 
-
 class Formatting(TestCase):
-    """ A set of simple unit tests that check formatting. """
+    """ Formatting (unit tests)
+        + tags that are not in valid_tags are removed (valid tags can be a space separated string or list, see code for defaults)
+        - tags appearing in <head> are stripped of non-head tags
+        - inline tags are by default allowed
+        + meta tags are encoded to avoid wayward quote: " (FUTURE '&' '<' etc?)
+        + keyword tags are converted to be a comma-separated list
+    """
     def setUp(self):
         meta_data = Coverage.PathMetaData(
                 path        = "/",
@@ -267,8 +296,46 @@ class Formatting(TestCase):
         self.assertEqual(unicode(self.meta_data.raw1), exp)
 
 
+class Definition(TestCase):
+    """ Definition (System tests)
+        + if "head" is True, tag is automatically included in the head
+        + if "name" is included, that is the name of the given tag, otherwise, the field name is used
+        + if verbose_name is used, pass on to field (through field_kwargs)
+        + if the field argument given, that Django field type is used
+        + if editable is set to False, no Django model field is created. The value is always from populate_from
+        + if choices is given it is passed onto the field, (expanded if just a list of strings)
+        + If help_text used, this is passed onto the field
+            + the populate_from of the field is sometimes mentioned automatically in the help_text:
+            + if populate_from value is a field name: "If empty, {{ field_name }} will be used"
+            + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
+    """
+
+class MetaOptions(TestCase):
+    """ Meta options (System tests)
+        + groups: these elements are grouped together in the admin and can be output together in the template
+        + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
+        + models: list of models and/or apps which are available for model instance meta data
+        - (FUTURE: verbose_name(_plural): this is passed onto Django)
+        + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
+    """
+
+class Templates(TestCase):
+    """ Templates (System tests)
+        + {% get_metadata %} without arguments outputs the head elements
+        + {% get_metadata as metadata %} stores the accessor as a variable
+        + {% metadata %} outputs all the head elements
+        + {% metadata.groupname %} outputs all the elements in given group
+        + {% metadata.fieldname %} outputs a single element (full tag)
+        + {% metadata.fieldname.value %} outputs only the value from a single element
+        + {% metadata.fieldname.field.name %} outputs the element's name etc
+    """
+
 class Random(TestCase):
-    """ A collection of random tests for various isolated features. """
+    """
+        - Caching
+            - meta data lookups are avoided by caching previous rendering for certain amount of time
+
+    """
 
     def setUp(self):
         self.page = Page.objects.create(type="abc")
@@ -329,3 +396,5 @@ class Random(TestCase):
 
     def test_seo_content_types(self):
         """ Checks the creation of choices for the SEO content types. """
+
+

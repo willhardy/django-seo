@@ -4,8 +4,10 @@
 #    * ViewMetaData needs to resolve variables
 #    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
 #    * Add unique constraints for models with/without sites support
+#    * Rewrite resolution to look for populate_from values before looking in other instances
 #    * Admin!
 #    * Tests!
+#    * Caching
 #    * Documentation
 #    * Review escaping: check that autoescape is working. remove '"' in meta tags (maybe also '<', '>', '&')
 
@@ -22,8 +24,8 @@ from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet
 
 from django.template import Template, Context
-from rollyouown.seo.fields import MetaDataField
-from rollyouown.seo.fields import TagField, MetaTagField, KeywordTag, RawField
+from rollyourown.seo.fields import MetaDataField
+from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
 
 
 registry = SortedDict()
@@ -115,7 +117,7 @@ class BoundMetaDataField(object):
 
 
 class MetaDataManager(models.Manager):
-    def on_current_site():
+    def on_current_site(self):
         queryset = super(MetaDataManager, self).get_query_set()
         # If we are using sites, exclude irrelevant data
         if self.model._meta_data.use_sites:
@@ -238,7 +240,7 @@ class MetaDataBase(type):
         # 2. Model-based model
         class ModelMetaData(MetaDataBaseModel):
             content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types()})
+                                        limit_choices_to={'id__in': get_seo_content_types(new_class)})
             objects = ModelMetaDataManager()
             _meta_data = new_class
 
@@ -267,7 +269,7 @@ class MetaDataBase(type):
         class ModelInstanceMetaData(MetaDataBaseModel):
             path           = models.CharField(_('path'), max_length=511)
             content_type   = models.ForeignKey(ContentType, null=True, blank=True,
-                                        limit_choices_to={'id__in': get_seo_content_types()})
+                                        limit_choices_to={'id__in': get_seo_content_types(new_class)})
             object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
             content_object = generic.GenericForeignKey('content_type', 'object_id')
             objects = ModelInstanceMetaDataManager()
