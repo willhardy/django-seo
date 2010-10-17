@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
 from django.db import models
 from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
@@ -15,9 +16,8 @@ class MetaDataManager(models.Manager):
         queryset = super(MetaDataManager, self).get_query_set()
         # If we are using sites, exclude irrelevant data
         if self.model._meta_data.use_sites:
-            current_site = Site.objects.get_current()
             # Exclude entries for other sites, keep site=current and site=null
-            queryset = queryset.extra(where=['site_id IS NULL OR site_id=%s'], params=[current_site.id])
+            queryset = queryset.extra(where=['site_id IS NULL OR site_id=%s'], params=[settings.SITE_ID])
         return queryset
 
 class PathMetaDataManager(MetaDataManager):
