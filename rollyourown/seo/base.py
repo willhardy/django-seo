@@ -18,6 +18,7 @@ from django.utils.functional import curry
 from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from django.utils.safestring import mark_safe
 
 from rollyourown.seo.utils import NotSet
 
@@ -62,16 +63,22 @@ class FormattedMetaData(object):
         """ Returns an appropriate value for the given name. """
         name = str(name)
         if name in self.__metadata.elements:
+            element = self.__metadata.elements[name]
+
             # Look in instances for an explicit value
-            for instance in self.__instances():
-                value = getattr(instance, name)
-                if value:
-                    return value
+            if element.editable:
+                for instance in self.__instances():
+                    value = getattr(instance, name)
+                    if value:
+                        return value
 
             # Otherwise, return an appropriate default value (populate_from)
-            populate_from = self.__metadata.elements[name].populate_from
+            populate_from = element.populate_from
             if callable(populate_from):
-                return populate_from()
+                if getattr(populate_from, 'im_self', None):
+                    return populate_from()
+                else:
+                    return populate_from(self.__metadata)
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:
@@ -84,7 +91,10 @@ class FormattedMetaData(object):
             pass
         else:
             if callable(value):
-                return value()
+                if getattr(value, 'im_self', None):
+                    return value()
+                else:
+                    return value(self.__metadata)
             return value
 
     def __getattr__(self, name):
@@ -99,7 +109,7 @@ class FormattedMetaData(object):
 
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
-        return '\n'.join(map(unicode, filter(None, (self._resolve_value(f) for f,e in self.__metadata.elements.items() if e.head))))
+        return mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata.elements.items() if e.head))
 
 
 class BoundMetaDataField(object):
@@ -114,7 +124,7 @@ class BoundMetaDataField(object):
 
     def __unicode__(self):
         if self.value:
-            return self.field.render(self.value)
+            return mark_safe(self.field.render(self.value))
         else:
             return u""
 
@@ -220,7 +230,7 @@ class MetaDataBase(type):
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_formatted_data(cls, path):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls, cls._get_instances(path))
+        return FormattedMetaData(cls(), cls._get_instances(path))
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)

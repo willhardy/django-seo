@@ -14,6 +14,8 @@
     * Random (series of various uncategorised tests)
 
 """
+import logging
+import StringIO
 
 from django.core.urlresolvers import reverse
 from django.test import TestCase
@@ -115,8 +117,10 @@ class DataSelection(TestCase):
         self.assertEqual(get_meta_data(path).title.value, 'View title')
 
     def test_sites(self):
+        """ Tests the django.contrib.sites support.
+            A separate meta data definition is used, WithSites, which has turned on sites support.
+        """
         path = "/abc/"
-        # TODO: Create a new MetaData object that users sites (WithSites)
         site = Site.objects.get_current()
         path_meta_data = WithSites.PathMetaData.objects.create(site=site, title="Site Path title", path=path)
         self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, 'Site Path title')
@@ -127,12 +131,13 @@ class DataSelection(TestCase):
         # Meta data with an explicitly wrong site should not work
         path_meta_data.site_id = site.id + 1
         path_meta_data.save()
-        # [l.__dict__ for l in seo_get_meta_data(path, name="WithSites")._FormattedMetaData__instances()]
         self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, None)
 
     def test_missing_value(self):
+        """ Checks that nothing breaks when no value could be found. 
+            The value should be None, the output blank (if that is appropriate for the field).
+        """
         path = "/abc/"
-        # [l.__dict__ for l in seo_get_meta_data(path, name="WithSites")._FormattedMetaData__instances()]
         self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, None)
         self.assertEqual(unicode(seo_get_meta_data(path, name="WithSites").title), "")
 
@@ -206,7 +211,7 @@ class DataSelection(TestCase):
 
 class ValueResolution(TestCase):
     """ Value resolution (unit tests)
-        - if text is missing from a given meta data entry, populate_from is used
+        + if text is missing from a given meta data entry, populate_from is used
         + populate_from is resolved: 
             1) callable
             2) name of field/callable on metadata object
@@ -219,18 +224,18 @@ class ValueResolution(TestCase):
         self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page-one-type", content=u"Page one content.")
         self.page2 = Page.objects.create(type=u"page-two-type", content=u"Page two content.")
 
-        content_type = ContentType.objects.get_for_model(Page)
+        self.page_content_type = ContentType.objects.get_for_model(Page)
 
-        self.meta_data1 = Coverage.ModelInstanceMetaData.objects.get(content_type=content_type, object_id=self.page1.id)
+        self.meta_data1 = Coverage.ModelInstanceMetaData.objects.get(content_type=self.page_content_type, object_id=self.page1.id)
         self.meta_data1.keywords = "MD Keywords"
         self.meta_data1.save()
-        self.meta_data2 = Coverage.ModelInstanceMetaData.objects.get(content_type=content_type, object_id=self.page2.id)
+        self.meta_data2 = Coverage.ModelInstanceMetaData.objects.get(content_type=self.page_content_type, object_id=self.page2.id)
 
-        self.category_meta_data = Coverage.ModelMetaData(content_type=content_type)
-        self.category_meta_data.title = u"CMD { Title"
-        self.category_meta_data.keywords = u"CMD Keywords, {{ page.type }}, more keywords"
-        self.category_meta_data.description = u"CMD Description for {{ page }} and {{ page }}"
-        self.category_meta_data.save()
+        self.model_meta_data = Coverage.ModelMetaData(content_type=self.page_content_type)
+        self.model_meta_data.title = u"MMD { Title"
+        self.model_meta_data.keywords = u"MMD Keywords, {{ page.type }}, more keywords"
+        self.model_meta_data.description = u"MMD Description for {{ page }} and {{ page }}"
+        self.model_meta_data.save()
 
         self.context1 = get_meta_data(path=self.page1.get_absolute_url())
         self.context2 = get_meta_data(path=self.page2.get_absolute_url())
@@ -241,24 +246,85 @@ class ValueResolution(TestCase):
         self.view_meta_data.description = "MD {{ text }} Description"
         self.view_meta_data.save()
 
-
     def test_direct_data(self):
         """ Check data is used directly when it is given. """
         self.assertEqual(self.context1.keywords.value, u'MD Keywords')
 
-    def test_category_data(self):
-        """ Check that the category data is used when it is missing from the relevant meta data. 
-        """
-        # The brace is included to check that no error is thrown by an attempted substitution
-        self.assertEqual(self.context2.title.value, u'CMD { Title')
+    def test_populate_from_literal(self):
+        # Explicit literal
+        self.assertEqual(self.context1.populate_from3.value, u'efg')
+        # Implicit literal is not evaluated (None)
+        self.assertEqual(self.context1.populate_from4.value, None)
+        self.assertEqual(self.context1.populate_from5.value, None)
 
-    def test_category_substitution(self):
-        """ Check that category data is substituted correctly """
-        self.assertEqual(self.context2.keywords.value, u'CMD Keywords, page-two-type, more keywords')
-        self.assertEqual(self.context1.description.value, u'CMD Description for MD Page One Title and MD Page One Title')
-        self.assertEqual(self.context2.description.value, u'CMD Description for Page two content. and Page two content.')
+    def test_populate_from_callable(self):
+        # Callable given as a string
+        self.assertEqual(self.context1.populate_from1.value, u'wxy')
+        # Callable given as callable (method)
+        self.assertEqual(self.context1.populate_from7.value, u'wxy')
 
-    def test_substitution(self):
+    def test_populate_from_field(self):
+        # Data direct from another field
+        self.assertEqual(self.context1.populate_from6.value, u'MD Keywords')
+        # Data direct from another field's populate_from
+        self.assertEqual(self.context1.populate_from2.value, u'example.com')
+
+    def test_fallback_order(self):
+        path = self.page1.get_absolute_url()
+        # Collect instances from all four meta data model for the same path
+        # Each will have a title (ie field with populate_from) and a heading (ie field without populate_from)
+        path_md = Coverage.PathMetaData.objects.create(path=path, title='path title', heading="path heading")
+        modelinstance_md = self.meta_data1
+        model_md = self.model_meta_data
+        view_md = Coverage.ViewMetaData.objects.create(view='userapp_page_detail', title='view title', heading="view heading")
+        # Correct some values
+        modelinstance_md.title = "model instance title"
+        modelinstance_md.heading = "model instance heading"
+        modelinstance_md.save()
+        model_md.title = "model title"
+        model_md.heading = "model heading"
+        model_md.save()
+        # A convenience function for future checks
+        def check_values(title, heading, heading2):
+            self.assertEqual(get_meta_data(path=path).title.value, title)
+            self.assertEqual(get_meta_data(path=path).heading.value, heading)
+            self.assertEqual(get_meta_data(path=path).populate_from2.value, heading2)
+
+        # Path is always found first
+        check_values("path title", "path heading", "path heading")
+
+        # populate_from is from the path model first
+        path_md.title = ""
+        path_md.save()
+        check_values("example.com", "path heading", "path heading")
+
+        # a field without populate_from just needs to be blank to fallback (heading)
+        # a field with populate_from needs to be deleted (title) or have populate_from resolve to blank (populate_from2)
+        path_md.heading = ""
+        path_md.save()
+        check_values("path title", "model instance heading", "model instance heading")
+
+        path_md.delete()
+        check_values("model instance title", "model instance heading", "model instance heading")
+        
+        modelinstance_md.delete()
+        check_values("model title", "model heading", "model heading")
+
+        model_md.delete()
+        check_values("view title", "view heading", "view heading")
+
+        # Nothing matches, no meta data shown # TODO: Should populate_from be tried?
+        view_md.delete()
+        check_values(None, None, None)
+
+    def test_model_variable_substitution(self):
+        """ Simple check to see if model variable substitution is happening """
+        self.assertEqual(self.context2.keywords.value, u'MMD Keywords, page-two-type, more keywords')
+        self.assertEqual(self.context1.description.value, u'MMD Description for MD Page One Title and MD Page One Title')
+        self.assertEqual(self.context2.description.value, u'MMD Description for Page two content. and Page two content.')
+
+    def test_view_variable_substitution(self):
+        """ Simple check to see if view variable substitution is happening """
         response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
         self.assertContains(response, u'<title>MD abc123 Title</title>')
         self.assertContains(response, u'<meta name="keywords" content="MD abc123 Keywords" />')
@@ -266,20 +332,21 @@ class ValueResolution(TestCase):
 
     def test_not_request_context(self):
         """ Tests the view meta data on a view that is not a request context. """
+        # catch logging messages
+        logs = StringIO.StringIO()
+        handler = logging.StreamHandler(logs)
+        logging.getLogger().addHandler(handler)
+
         self.view_meta_data.view = "userapp_my_other_view"
         self.view_meta_data.save()
         response = self.client.get(reverse('userapp_my_other_view', args=["abc123"]))
-        self.assertContains(response, u'<title>example.com</title>')
-        self.assertContains(response, u'<meta name="keywords" content="" />')
-        self.assertContains(response, u'<meta name="description" content="" />')
+        # Code should not throw error
+        self.assertEqual(response.status_code, 200)
+        # But a warning instead
+        logging.getLogger('').removeHandler(handler)
 
-    def test_bad_or_old_view(self):
-        self.view_meta_data.view = "this_view_does_not_exist"
-        self.view_meta_data.save()
-        response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
-        self.assertContains(response, u'<title>example.com</title>')
-        self.assertContains(response, u'<meta name="keywords" content="" />')
-        self.assertContains(response, u'<meta name="description" content="" />')
+        assert "{% get_metadata %} needs a RequestContext" in logs.getvalue(), "No warning logged when RequestContext not used."
+
 
 class Formatting(TestCase):
     """ Formatting (unit tests)
@@ -288,6 +355,7 @@ class Formatting(TestCase):
         - inline tags are by default allowed
         + meta tags are encoded to avoid wayward quote: " (FUTURE '&' '<' etc?)
         + keyword tags are converted to be a comma-separated list
+        + values are escaped appropriately
     """
     def setUp(self):
         meta_data = Coverage.PathMetaData(
@@ -432,8 +500,8 @@ class Random(TestCase):
         site = Site.objects.get_current()
         self.assertEqual(site.name, self.context.title.value)
 
-    def test_missing_category_meta_data(self):
-        " Checks that lookups work where the category meta data is  missing "
+    def test_missing_model_meta_data(self):
+        " Checks that lookups work where the model meta data is  missing "
         try:
             self.context.title
         except Coverage.ModelInstanceMetaData.DoesNotExist:

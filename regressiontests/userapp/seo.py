@@ -15,7 +15,7 @@ class Coverage(seo.MetaData):
         return "xyz"
     get_populate_from2.short_description = "Always xyz"
 
-    title        = seo.Tag(populate_from=seo.Literal(current_site.name))
+    title        = seo.Tag(populate_from=seo.Literal(current_site.name), head=True)
     heading      = seo.Tag(max_length=68, name="hs:tag", verbose_name="tag two", head=True)
 
     keywords     = seo.MetaTag()
@@ -34,6 +34,8 @@ class Coverage(seo.MetaData):
     populate_from3     = seo.Tag(populate_from=seo.Literal("efg"))
     populate_from4     = seo.Tag(populate_from="ghi")
     populate_from5     = seo.Tag(populate_from="ghi", editable=False)
+    populate_from6     = seo.Tag(populate_from="keywords")
+    populate_from7     = seo.Tag(populate_from=get_populate_from1)
 
     field1       = seo.Tag(field=models.TextField)
 

@@ -5,7 +5,6 @@ import re
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from django.utils.safestring import mark_safe
 from django.utils.html import conditional_escape
 
 from rollyourown.seo.utils import strip_tags, NotSet
@@ -89,7 +88,7 @@ class Tag(MetaDataField):
     def clean(self, value):
         if self.escape_value:
             value = conditional_escape(value)
-        return mark_safe(value.strip())
+        return value.strip()
 
     def render(self, value):
         return u'<%s>%s</%s>' % (self.name, value, self.name)
@@ -120,7 +119,7 @@ class MetaTag(MetaDataField):
 
     def render(self, value):
         # TODO: HTML/XHTML?
-        return mark_safe(u'<meta name="%s" content="%s" />' % (self.name, value))
+        return u'<meta name="%s" content="%s" />' % (self.name, value)
 
 class KeywordTag(MetaTag):
     def __init__(self, name=None, head=True, verbose_name=None, editable=True, 
@@ -163,7 +162,7 @@ class Raw(MetaDataField):
         if valid_tags is not None:
             value = strip_tags(value, valid_tags)
 
-        return mark_safe(value)
+        return value
 
     def render(self, value):
         return value

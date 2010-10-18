@@ -107,10 +107,9 @@ INSTALLED_APPS = [
 # If south is available, add it
 try:
     import south
-    ISNTALLED_APPS.append('south')
+    INSTALLED_APPS.append('south')
 except ImportError:
     pass
-
 
 SEO_META_DATA = 'userapp.seo.Coverage'
 SEO_MODELS = ('userapp',)
