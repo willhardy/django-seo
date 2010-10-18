@@ -83,7 +83,7 @@ class DataSelection(TestCase):
     def test_model_instance(self):
         page = Page(title="Title", type="newpage")
         path = page.get_absolute_url()
-        self.assertEqual(get_meta_data(path).title, None)
+        self.assertEqual(get_meta_data(path).title.value, "example.com")
 
         # Check that a new metadata instance is created
         old_count = Coverage.ModelInstanceMetaData.objects.all().count()
@@ -128,7 +128,13 @@ class DataSelection(TestCase):
         path_meta_data.site_id = site.id + 1
         path_meta_data.save()
         # [l.__dict__ for l in seo_get_meta_data(path, name="WithSites")._FormattedMetaData__instances()]
-        self.assertEqual(seo_get_meta_data(path, name="WithSites").title, None)
+        self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, None)
+
+    def test_missing_value(self):
+        path = "/abc/"
+        # [l.__dict__ for l in seo_get_meta_data(path, name="WithSites")._FormattedMetaData__instances()]
+        self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, None)
+        self.assertEqual(unicode(seo_get_meta_data(path, name="WithSites").title), "")
 
     def test_path_conflict(self):
         """ Check the crazy scenario where an existing meta data object has the same path. """
@@ -238,19 +244,19 @@ class ValueResolution(TestCase):
 
     def test_direct_data(self):
         """ Check data is used directly when it is given. """
-        self.assertEqual(self.context1.keywords, u'MD Keywords')
+        self.assertEqual(self.context1.keywords.value, u'MD Keywords')
 
     def test_category_data(self):
         """ Check that the category data is used when it is missing from the relevant meta data. 
         """
         # The brace is included to check that no error is thrown by an attempted substitution
-        self.assertEqual(self.context2.title, u'CMD { Title')
+        self.assertEqual(self.context2.title.value, u'CMD { Title')
 
     def test_category_substitution(self):
         """ Check that category data is substituted correctly """
-        self.assertEqual(self.context2.keywords, u'CMD Keywords, page-two-type, more keywords')
-        self.assertEqual(self.context1.description, u'CMD Description for MD Page One Title and MD Page One Title')
-        self.assertEqual(self.context2.description, u'CMD Description for Page two content. and Page two content.')
+        self.assertEqual(self.context2.keywords.value, u'CMD Keywords, page-two-type, more keywords')
+        self.assertEqual(self.context1.description.value, u'CMD Description for MD Page One Title and MD Page One Title')
+        self.assertEqual(self.context2.description.value, u'CMD Description for Page two content. and Page two content.')
 
     def test_substitution(self):
         response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
@@ -424,7 +430,7 @@ class Random(TestCase):
         """
         from django.contrib.sites.models import Site
         site = Site.objects.get_current()
-        self.assertEqual(site.name, self.context.title)
+        self.assertEqual(site.name, self.context.title.value)
 
     def test_missing_category_meta_data(self):
         " Checks that lookups work where the category meta data is  missing "

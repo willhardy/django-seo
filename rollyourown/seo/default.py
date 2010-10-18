@@ -121,6 +121,9 @@ Problems:
     - help_text editing isn't done in Django and can't be turned off
     - max_length is set implicitly, should this be set explicitly? (I can live with this, length is rarely important)
 
+Architecture:
+    - explain each class and what its responsibilities are
+
 
 class DefaultMetaDataModel(models.Model):
     title       = models.CharField(max_length=68, default="", blank=True, help_text="This is the meta (page) title, that appears in the title bar.")

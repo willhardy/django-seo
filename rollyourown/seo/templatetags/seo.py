@@ -9,8 +9,9 @@ from django.template import VariableDoesNotExist
 register = template.Library()
 
 class MetaDataNode(template.Node):
-    def __init__(self, variable_name):
+    def __init__(self, variable_name, meta_data_name=None):
         self.variable_name = variable_name
+        self.meta_data_name = meta_data_name
         self.path = template.Variable('request.META.PATH_INFO')
 
     def render(self, context):
@@ -21,7 +22,7 @@ class MetaDataNode(template.Node):
                   "'django.core.context_processors.request' context processor.")
             logging.warning(msg) # or is this an error?
         else:
-            meta_data = get_meta_data(path)
+            meta_data = get_meta_data(path, self.meta_data_name)
             if self.variable_name is not None:
                 context[self.variable_name] = meta_data
             else:
@@ -36,17 +37,23 @@ def do_get_metadata(parser, token):
 
         {% get_metadata [as my_variable] %}
 
+        or if you have multiple meta data classes:
+
+        {% get_metadata MyClass [as my_variable] %}
+
     """
     bits = list(token.split_contents())
+    meta_data_name = None
+    variable_name = None
 
-    if len(bits) == 1:
-        variable_name = None
-    elif len(bits) == 3 and bits[1] == "as":
-        variable_name = bits[2]
-    else:
+    if len(bits) in (3,4) and bits[-2] == "as":
+        variable_name = bits[-1]
+    if len(bits) in (2,4):
+        meta_data_name = bits[1]
+    if len(bits) > 1 and not meta_data_name and not variable_name:
         raise template.TemplateSyntaxError("expected format is '%r [as <variable_name>]'" % bits[0])
 
-    return MetaDataNode(variable_name)
+    return MetaDataNode(variable_name, meta_data_name)
 
 
 register.tag('get_metadata', do_get_metadata)

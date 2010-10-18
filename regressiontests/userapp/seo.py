@@ -1,5 +1,8 @@
 from rollyourown import seo
 from django.db import models
+from django.contrib.sites.models import Site
+
+current_site = Site.objects.get_current()
 
 
 class Coverage(seo.MetaData):
@@ -12,7 +15,7 @@ class Coverage(seo.MetaData):
         return "xyz"
     get_populate_from2.short_description = "Always xyz"
 
-    title        = seo.Tag()
+    title        = seo.Tag(populate_from=seo.Literal(current_site.name))
     heading      = seo.Tag(max_length=68, name="hs:tag", verbose_name="tag two", head=True)
 
     keywords     = seo.MetaTag()

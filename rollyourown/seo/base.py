@@ -66,7 +66,7 @@ class FormattedMetaData(object):
             for instance in self.__instances():
                 value = getattr(instance, name)
                 if value:
-                    return BoundMetaDataField(self.__metadata.elements[name], value)
+                    return value
 
             # Otherwise, return an appropriate default value (populate_from)
             populate_from = self.__metadata.elements[name].populate_from
@@ -90,10 +90,10 @@ class FormattedMetaData(object):
     def __getattr__(self, name):
         # Look for a group called "name"
         if name in self.__metadata.groups:
-            return '\n'.join(self._resolve_value(f) for f in self.__metadata.groups[name])
+            return '\n'.join(BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(f)) for f in self.__metadata.groups[name])
         # Look for an element called "name"
         elif name in self.__metadata.elements:
-            return self._resolve_value(name)
+            return BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(name))
         else:
             raise AttributeError
 
@@ -107,10 +107,16 @@ class BoundMetaDataField(object):
 
     def __init__(self, field, value):
         self.field = field
-        self.value = field.clean(value)
+        if value:
+            self.value = field.clean(value)
+        else:
+            self.value = None
 
     def __unicode__(self):
-        return self.field.render(self.value)
+        if self.value:
+            return self.field.render(self.value)
+        else:
+            return u""
 
     def __str__(self):
         return self.__unicode__().encode("ascii", "ignore")
@@ -145,8 +151,11 @@ class MetaDataBase(type):
 
         # Validation:
         # Check that no group names clash with element names
-        for key in groups:
+        # TODO: Write a test framework for seo.MetaData validation
+        for key,members in groups.items():
             assert key not in elements, "Group name '%s' clashes with field name" % key
+            for member in members:
+                assert member in elements, "Group member '%s' is not a valid field" % member
 
         # Preprocessing complete, here is the new class
         new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
