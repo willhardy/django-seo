@@ -17,6 +17,12 @@ class NotSet(object):
 NotSet = NotSet()
 
 
+class Literal(object):
+    " Wrap literal values so that the system knows to treat them that way "
+    def __init__(self, value):
+        self.value = value
+
+
 class LazyList(list):
     """ Generic python list which is populated when items are first accessed.
     """

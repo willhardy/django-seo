@@ -27,6 +27,7 @@ from rollyourown.seo import get_meta_data as seo_get_meta_data
 from userapp.models import Page, Product, Category, NoPath
 from userapp.seo import Coverage, WithSites
 
+
 def get_meta_data(path):
     return seo_get_meta_data(path, name="Coverage")
 
@@ -79,6 +80,7 @@ class DataSelection(TestCase):
         self.assertEqual(get_meta_data(path).title.value, 'Path title')
 
     def test_model_instance(self):
+        # With no matching instances, the default should be used
         page = Page(title="Title", type="newpage")
         path = page.get_absolute_url()
         self.assertEqual(get_meta_data(path).title.value, "example.com")
@@ -99,11 +101,13 @@ class DataSelection(TestCase):
 
         # Model meta data only works if there is no instance meta data
         self.assertEqual(get_meta_data(path).title.value, 'ModelInstance title')
+        self.assertEqual(get_meta_data(path).keywords.value, 'ModelInstance keywords')
 
         # Remove the instance meta data
-        self.product_meta_data.title = ''
+        self.product_meta_data.keywords = ''
         self.product_meta_data.save()
-        self.assertEqual(get_meta_data(path).title.value, 'Model title')
+
+        self.assertEqual(get_meta_data(path).keywords.value, 'Model keywords')
 
     def test_view(self):
         path = '/my/view/text/'
@@ -263,7 +267,7 @@ class ValueResolution(TestCase):
         # Data direct from another field
         self.assertEqual(self.context1.populate_from6.value, u'MD Keywords')
         # Data direct from another field's populate_from
-        self.assertEqual(self.context1.populate_from2.value, u'example.com')
+        self.assertEqual(self.context1.populate_from2.value, None)
 
     def test_fallback_order(self):
         path = self.page1.get_absolute_url()
@@ -298,20 +302,23 @@ class ValueResolution(TestCase):
         # a field with populate_from needs to be deleted (title) or have populate_from resolve to blank (populate_from2)
         path_md.heading = ""
         path_md.save()
-        check_values("path title", "model instance heading", "model instance heading")
+        check_values("example.com", "model instance heading", "model instance heading")
 
         path_md.delete()
         check_values("model instance title", "model instance heading", "model instance heading")
         
-        modelinstance_md.delete()
-        check_values("model title", "model heading", "model heading")
+        modelinstance_md.title = ""
+        modelinstance_md.heading = ""
+        modelinstance_md.save()
+        check_values("example.com", "model heading", "model heading")
 
+        modelinstance_md.delete()
         model_md.delete()
         check_values("view title", "view heading", "view heading")
 
         # Nothing matches, no meta data shown # TODO: Should populate_from be tried?
         view_md.delete()
-        check_values(None, None, None)
+        check_values("example.com", None, None)
 
     def test_model_variable_substitution(self):
         """ Simple check to see if model variable substitution is happening """
@@ -520,13 +527,6 @@ class Random(TestCase):
         from django.contrib.sites.models import Site
         site = Site.objects.get_current()
         self.assertEqual(site.name, self.context.title.value)
-
-    def test_missing_model_meta_data(self):
-        " Checks that lookups work where the model meta data is  missing "
-        try:
-            self.context.title
-        except Coverage.ModelInstanceMetaData.DoesNotExist:
-            self.fail("MetaData.DoesNotExist raised inappropriately.")
 
     def test_missing_path(self):
         " Checks that a model with a missing path is gracefully ignored. "

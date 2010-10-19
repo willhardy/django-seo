@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 #from rollyourown.seo.modelmetadata import get_seo_content_types
 from rollyourown.seo.systemviews import SystemViewField
-from rollyourown.seo.utils import resolve_to_name
+from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
 class MetaDataManager(models.Manager):
     def on_current_site(self):
@@ -39,9 +39,57 @@ class ViewMetaDataManager(MetaDataManager):
             return self.on_current_site().get(view=view_name)
         raise self.model.DoesNotExist()
 
+class MetaDataBaseModel(models.Model):
+
+    class Meta:
+        abstract = True
+
+    def __init__(self, *args, **kwargs):
+        super(MetaDataBaseModel, self).__init__(*args, **kwargs)
+
+        # Provide access to a class instance
+        self._meta_data = self.__class__._meta_data()
+
+    def _resolve_value(self, name):
+        """ Returns an appropriate value for the given name. """
+        name = str(name)
+        if name in self._meta_data.elements:
+            element = self._meta_data.elements[name]
+
+            # Look in instances for an explicit value
+            if element.editable:
+                value = getattr(self, name)
+                if value:
+                    return value
+
+            # Otherwise, return an appropriate default value (populate_from)
+            populate_from = element.populate_from
+            if callable(populate_from):
+                if getattr(populate_from, 'im_self', None):
+                    return populate_from()
+                else:
+                    return populate_from(self._meta_data)
+            elif isinstance(populate_from, Literal):
+                return populate_from.value
+            elif populate_from is not NotSet:
+                return self._resolve_value(populate_from)
+
+        # If this is not an element, look for an attribute on metadata
+        try:
+            value = getattr(self._meta_data, name)
+        except AttributeError:
+            pass
+        else:
+            if callable(value):
+                if getattr(value, 'im_self', None):
+                    return value()
+                else:
+                    return value(self._meta_data)
+            return value
+
 
 # 1. Path-based model
-class PathMetaDataBase(models.Model):
+class PathMetaDataBase(MetaDataBaseModel):
     path    = models.CharField(_('path'), max_length=511)
     objects = PathMetaDataManager()
 
@@ -51,7 +99,7 @@ class PathMetaDataBase(models.Model):
         abstract = True
 
 # 2. Model-based model
-class ModelMetaDataBase(models.Model):
+class ModelMetaDataBase(MetaDataBaseModel):
     content_type   = models.ForeignKey(ContentType, null=True, blank=True)
                                 #limit_choices_to={'id__in': get_seo_content_types(new_class)})
     objects        = ModelMetaDataManager()
@@ -78,7 +126,7 @@ class ModelMetaDataBase(models.Model):
         abstract = True
 
 # 3. Model-instance-based model
-class ModelInstanceMetaDataBase(models.Model):
+class ModelInstanceMetaDataBase(MetaDataBaseModel):
     path           = models.CharField(_('path'), max_length=511)
     content_type   = models.ForeignKey(ContentType, null=True, blank=True)
                                 #limit_choices_to={'id__in': get_seo_content_types(new_class)})
@@ -93,7 +141,7 @@ class ModelInstanceMetaDataBase(models.Model):
         abstract = True
 
 # 4. View-based model
-class ViewMetaDataBase(models.Model):
+class ViewMetaDataBase(MetaDataBaseModel):
     view = SystemViewField(blank=True, null=True)
     objects = ViewMetaDataManager()
 

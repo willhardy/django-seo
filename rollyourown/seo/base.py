@@ -20,7 +20,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.utils.safestring import mark_safe
 
-from rollyourown.seo.utils import NotSet
+from rollyourown.seo.utils import NotSet, Literal
 
 from django.template import Template, Context
 from rollyourown.seo.fields import MetaDataField
@@ -30,12 +30,6 @@ from rollyourown.seo.meta_models import PathMetaDataManager, ModelMetaDataManage
 
 
 registry = SortedDict()
-
-
-class Literal(object):
-    " Wrap literal values so that the system knows to treat them that way "
-    def __init__(self, value):
-        self.value = value
 
 
 class FormattedMetaData(object):
@@ -60,20 +54,18 @@ class FormattedMetaData(object):
             yield instance
 
     def _resolve_value(self, name):
-        """ Returns an appropriate value for the given name. """
-        name = str(name)
+        """ Returns an appropriate value for the given name. 
+            This simply asks each of the instances for a value.
+        """
+        for instance in self.__instances():
+            value = instance._resolve_value(name)
+            if value:
+                return value
+
+        # Otherwise, return an appropriate default value (populate_from)
+        # TODO: This is duplicated in meta_models. Move this to a common home.
         if name in self.__metadata.elements:
-            element = self.__metadata.elements[name]
-
-            # Look in instances for an explicit value
-            if element.editable:
-                for instance in self.__instances():
-                    value = getattr(instance, name)
-                    if value:
-                        return value
-
-            # Otherwise, return an appropriate default value (populate_from)
-            populate_from = element.populate_from
+            populate_from = self.__metadata.elements[name].populate_from
             if callable(populate_from):
                 if getattr(populate_from, 'im_self', None):
                     return populate_from()
@@ -83,19 +75,6 @@ class FormattedMetaData(object):
                 return populate_from.value
             elif populate_from is not NotSet:
                 return self._resolve_value(populate_from)
-
-        # If this is not an element, look for an attribute on metadata
-        try:
-            value = getattr(self.__metadata, name)
-        except AttributeError:
-            pass
-        else:
-            if callable(value):
-                if getattr(value, 'im_self', None):
-                    return value()
-                else:
-                    return value(self.__metadata)
-            return value
 
     def __getattr__(self, name):
         # Look for a group called "name"
