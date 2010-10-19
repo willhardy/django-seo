@@ -3,8 +3,6 @@
 # TODO:
 #    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
 #    * Add unique constraints for models with/without sites support
-#    * Admin!
-#    * Tests!
 #    * Caching
 #    * Documentation
 
@@ -21,7 +19,7 @@ from rollyourown.seo.utils import NotSet, Literal
 
 from rollyourown.seo.fields import MetaDataField
 from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase
+from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase, _get_seo_models
 from rollyourown.seo.meta_models import PathMetaDataManager, ModelMetaDataManager, ModelInstanceMetaDataManager, ViewMetaDataManager
 
 
@@ -233,26 +231,10 @@ class MetaDataBase(type):
             pass
 
 
-    # TODO: Move this function out of the way (subclasses will want to define their own attributes)
-    def _get_seo_models(cls):
-        """ Gets the actual models to be used. """
-        seo_models = []
-        for model_name in cls.seo_models:
-            if "." in model_name:
-                app_label, model_name = model_name.split(".", 1)
-                model = models.get_model(app_label, model_name)
-                if model:
-                    seo_models.append(model)
-            else:
-                app = models.get_app(model_name)
-                if app:
-                    seo_models.extend(models.get_models(app))
-
-        return seo_models
-
 
 class MetaData(object):
     __metaclass__ = MetaDataBase
+
 
 
 def get_meta_data(path, name=None, context=None):
@@ -322,7 +304,7 @@ def register_signals():
         delete_callback = curry(_delete_callback, model_class=meta_data_class.ModelInstanceMetaData)
 
         ## Connect the models listed in settings to the update callback.
-        for model in meta_data_class._get_seo_models():
+        for model in _get_seo_models(meta_data_class):
             models.signals.post_save.connect(update_callback, sender=model, weak=False)
             models.signals.pre_delete.connect(delete_callback, sender=model, weak=False)
 

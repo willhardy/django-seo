@@ -9,7 +9,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.template import Template, Context
 
-#from rollyourown.seo.modelmetadata import get_seo_content_types
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
@@ -90,6 +89,7 @@ class MetaDataBaseModel(models.Model):
             return value
 
 
+
 # 1. Path-based model
 class PathMetaDataBase(MetaDataBaseModel):
     path    = models.CharField(_('path'), max_length=511)
@@ -104,7 +104,6 @@ class PathMetaDataBase(MetaDataBaseModel):
 # 2. Model-based model
 class ModelMetaDataBase(MetaDataBaseModel):
     content_type   = models.ForeignKey(ContentType, null=True, blank=True)
-                                #limit_choices_to={'id__in': get_seo_content_types(new_class)})
     objects        = ModelMetaDataManager()
 
     def __unicode__(self):
@@ -126,8 +125,7 @@ class ModelMetaDataBase(MetaDataBaseModel):
 # 3. Model-instance-based model
 class ModelInstanceMetaDataBase(MetaDataBaseModel):
     path           = models.CharField(_('path'), max_length=511)
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True)
-                                #limit_choices_to={'id__in': get_seo_content_types(new_class)})
+    content_type   = models.ForeignKey(ContentType, null=True, blank=True, editable=False)
     object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
     content_object = generic.GenericForeignKey('content_type', 'object_id')
     objects        = ModelInstanceMetaDataManager()
@@ -170,4 +168,20 @@ def _resolve(value, model_instance=None, context=None):
             context[model_instance._meta.module_name] = model_instance
         value = Template(value).render(context)
     return value
+
+def _get_seo_models(meta_data):
+    """ Gets the actual models to be used. """
+    seo_models = []
+    for model_name in meta_data.seo_models:
+        if "." in model_name:
+            app_label, model_name = model_name.split(".", 1)
+            model = models.get_model(app_label, model_name)
+            if model:
+                seo_models.append(model)
+        else:
+            app = models.get_app(model_name)
+            if app:
+                seo_models.extend(models.get_models(app))
+
+    return seo_models
 
