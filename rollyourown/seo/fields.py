@@ -7,7 +7,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.html import conditional_escape
 
-from rollyourown.seo.utils import strip_tags, NotSet
+from rollyourown.seo.utils import escape_tags, NotSet
 
 
 VALID_HEAD_TAGS = "head title base link meta script".split()
@@ -86,8 +86,8 @@ class Tag(MetaDataField):
         super(Tag, self).__init__(name, head, editable, populate_from, valid_tags, choices, field, field_kwargs)
 
     def clean(self, value):
-        if self.escape_value:
-            value = conditional_escape(value)
+        value = escape_tags(value, self.valid_tags or VALID_INLINE_TAGS)
+
         return value.strip()
 
     def render(self, value):
@@ -114,8 +114,10 @@ class MetaTag(MetaDataField):
         super(MetaTag, self).__init__(name, head, editable, populate_from, valid_tags, choices, field, field_kwargs)
 
     def clean(self, value):
-        # Remove double quote, replace newlines with spaces
-        return value.replace('"', '&#34;').replace("\n", " ").strip()
+        value = escape_tags(value, self.valid_tags)
+
+        # Replace newlines with spaces
+        return value.replace("\n", " ").strip()
 
     def render(self, value):
         # TODO: HTML/XHTML?
@@ -134,6 +136,8 @@ class KeywordTag(MetaTag):
                         field_kwargs, help_text)
 
     def clean(self, value):
+        value = escape_tags(value, self.valid_tags)
+
         # Remove double quote, replace newlines with commas
         return value.replace('"', '&#34;').replace("\n", ", ").strip()
 
@@ -155,12 +159,20 @@ class Raw(MetaDataField):
         if self.head:
             valid_tags = set(VALID_HEAD_TAGS)
             if self.valid_tags is not None:
-                valid_tags = valid_tags.intersection_update(self.valid_tags)
+                valid_tags = valid_tags & self.valid_tags
         else:
             valid_tags = self.valid_tags
 
-        if valid_tags is not None:
-            value = strip_tags(value, valid_tags)
+        value = escape_tags(value, valid_tags)
+
+        if self.head:
+            # Remove text before tags
+            before_tags = re.compile("^([^<].*)<")
+            value = before_tags.sub('<', value)
+
+            # Remove text after tags
+            after_tags = re.compile(">([^<].*)$")
+            value = after_tags.sub('>', value)
 
         return value
 

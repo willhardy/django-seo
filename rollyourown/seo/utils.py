@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import re
 
 from django.conf import settings
 from django.db import models
 from django.utils.functional import lazy
+from django.utils.safestring import mark_safe
+from django.utils.html import conditional_escape
 
 
 class NotSet(object):
@@ -131,16 +134,38 @@ def strip_tags(value, valid_tags):
         return value
     soup = BeautifulSoup(value)
     [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in valid_tags) ]
+    # XXX XXX Why str?
     return str(soup)
+
+def _replace_quot(match):
+    unescape = lambda v: v.replace('&quot;', '"').replace('&amp;', '&')
+    return u'<%s%s>' % (unescape(match.group(1)), unescape(match.group(3)))
 
 def escape_tags(value, valid_tags):
     """ Strips text from the given html string, leaving only tags.
         This functionality requires BeautifulSoup, nothing will be 
         done otherwise.
+
+        This isn't perfect. Someone could put javascript in here:
+              <a onClick="alert('hi');">test</a>
+
+            So if you use valid_tags, you still need to trust your data entry.
+            Or we could try:
+              - only escape the non matching bits
+              - use BeautifulSoup to understand the elements, escape everything else and remove potentially harmful attributes (onClick).
+              - Remove this feature entirely. Half-escaping things securely is very difficult, developers should not be lured into a false sense of security.
     """
-    # TODO Test that tags inside eg <meta> tags or scripts are left alone
-    if BeautifulSoup is None:
-        return value
-    soup = BeautifulSoup(value)
-    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in valid_tags) ]
-    return str(soup)
+    # 1. escape everything
+    value = conditional_escape(value)
+
+    # 2. Reenable certain tags
+    if valid_tags:
+        # TODO: precompile somewhere once?
+        tag_re = re.compile(r'&lt;(\s*/?\s*(%s))(.*?\s*)&gt;' % u'|'.join(re.escape(tag) for tag in valid_tags))
+        value = tag_re.sub(_replace_quot, value)
+
+    # Allow comments to be hidden
+    value = value.replace("&lt;!--", "<!--").replace("--&gt;", "-->")
+    
+    return mark_safe(value)
+

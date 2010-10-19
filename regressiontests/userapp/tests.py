@@ -358,7 +358,7 @@ class Formatting(TestCase):
         + values are escaped appropriately
     """
     def setUp(self):
-        meta_data = Coverage.PathMetaData(
+        self.path_meta_data = Coverage.PathMetaData(
                 path        = "/",
                 title       = "The <strong>Title</strong>",
                 heading     = "The <em>Heading</em>",
@@ -368,7 +368,7 @@ class Formatting(TestCase):
                               'No text outside tags please.',
                 raw2        = '<meta name="author" content="seo" />'
                               '<script>make_chaos();</script>')
-        meta_data.save()
+        self.path_meta_data.save()
 
         self.meta_data = get_meta_data(path="/")
     
@@ -376,72 +376,100 @@ class Formatting(TestCase):
         """ Tests html generation is performed correctly.
             Thorough cleaning is done when BeautifulSoup is available.
         """
-        if BeautifulSoup:
-            assert unicode(self.meta_data) == """<title>The <strong>Title</strong></title>
-<meta name="keywords" content="Some, keywords&#34;, with,  other, chars'" />
-<meta name="hs:tag" content="A   description with &#34; interesting' chars." />
+        exp = """<title>The <strong>Title</strong></title>
+<hs:tag>The <em>Heading</em></hs:tag>
+<meta name="keywords" content="Some, keywords&quot;, with,  other, chars&#39;" />
+<meta name="hs:metatag" content="A   description with &quot; interesting&#39; chars." />
 <meta name="author" content="seo" />
-""", "Incorrect html:\n" + unicode(self.meta_data)
-        else:
-            assert unicode(self.meta_data) == """<title>The <strong>Title</strong></title>
-<meta name="keywords" content="Some, keywords&#34;, with,  other, chars'" />
-<meta name="hs:tag" content="A   description with &#34; interesting' chars." />
-<meta name="author" content="seo" /><hr /> No text outside tags please.
-""", "Incorrect html:\n" + unicode(self.meta_data)
+<meta name="author" content="seo" />"""
+        assert unicode(self.meta_data).strip() == exp.strip(), "Incorrect html:\n" + unicode(self.meta_data) + "\n\n" + unicode(exp)
 
     def test_description(self):
         """ Tests the tag2 is cleaned correctly. """
-        exp = "A   description with &#34; interesting' chars."
+        exp = "A   description with &quot; interesting&#39; chars."
         self.assertEqual(self.meta_data.description.value, exp)
         exp = '<meta name="hs:metatag" content="%s" />' % exp
         self.assertEqual(unicode(self.meta_data.description), exp)
 
     def test_keywords(self):
         """ Tests keywords are cleaned correctly. """
-        # TODO: Add a "KeywordMetaTagField" that converts "\n" to "," 
-        # and has useful admin features
-        #exp = "Some, keywords&#34;, with,  other, chars'"
-        exp = "Some, keywords&#34;, with  other, chars'"
+        exp = "Some, keywords&quot;, with,  other, chars&#39;"
         self.assertEqual(self.meta_data.keywords.value, exp)
         exp = '<meta name="keywords" content="%s" />' % exp
         self.assertEqual(unicode(self.meta_data.keywords), exp)
 
-    def test_title(self):
+    def test_inline_tags(self):
         """ Tests the title is cleaned correctly. """
         exp = 'The <strong>Title</strong>'
         self.assertEqual(self.meta_data.title.value, exp)
-        exp = '<meta name="title" content="%s" />' % exp
+        exp = '<title>%s</title>' % exp
         self.assertEqual(unicode(self.meta_data.title), exp)
 
-    def test_heading(self):
-        """ Tests the heading is cleaned correctly. """
-        exp = 'The <em>Heading</em>'
-        self.assertEqual(self.meta_data.heading.value, exp)
-        exp = '<meta name="hs:tag" content="%s" />' % exp
-        self.assertEqual(unicode(self.meta_data.heading), exp)
+    def test_inline_tags2(self):
+        """ Tests the title is cleaned correctly. """
+        self.path_meta_data.title = "The <strong id=\"mytitle\">Title</strong>"
+        self.path_meta_data.save()
+        meta_data = get_meta_data(self.path_meta_data.path)
+        exp = 'The <strong id=\"mytitle\">Title</strong>'
+        self.assertEqual(meta_data.title.value, exp)
+        exp = '<title>%s</title>' % exp
+        self.assertEqual(unicode(meta_data.title), exp)
+
+    def test_inline_tags3(self):
+        """ Tests the title is cleaned correctly. """
+        self.path_meta_data.title = "The < strong >Title</ strong >"
+        self.path_meta_data.save()
+        meta_data = get_meta_data(self.path_meta_data.path)
+        exp = 'The < strong >Title</ strong >'
+        self.assertEqual(meta_data.title.value, exp)
+        exp = '<title>%s</title>' % exp
+        self.assertEqual(unicode(meta_data.title), exp)
+
+    def test_inline_tags4(self):
+        """ Tests the title is cleaned correctly. """
+        self.path_meta_data.title = "The <strong class=\"with&quot;inside\">Title</strong>"
+        self.path_meta_data.save()
+        meta_data = get_meta_data(self.path_meta_data.path)
+        exp = 'The <strong class="with&quot;inside">Title</strong>'
+        self.assertEqual(meta_data.title.value, exp)
+        exp = '<title>%s</title>' % exp
+        self.assertEqual(unicode(meta_data.title), exp)
+
+    def test_inline_tags5(self):
+        """ Tests the title is cleaned correctly. """
+        self.path_meta_data.title = "The Title <!-- with a comment -->"
+        self.path_meta_data.save()
+        meta_data = get_meta_data(self.path_meta_data.path)
+        exp = 'The Title <!-- with a comment -->'
+        self.assertEqual(meta_data.title.value, exp)
+        exp = '<title>%s</title>' % exp
+        self.assertEqual(unicode(meta_data.title), exp)
+
+    def test_forbidden_tags(self):
+        """ Tests the title is cleaned correctly. """
+        self.path_meta_data.title = "The <div>Title</div>"
+        self.path_meta_data.save()
+        meta_data = get_meta_data(self.path_meta_data.path)
+        exp = 'The &lt;div&gt;Title&lt;/div&gt;'
+        self.assertEqual(meta_data.title.value, exp)
+        exp = '<title>%s</title>' % exp
+        self.assertEqual(unicode(meta_data.title), exp)
 
     def test_raw1(self):
-        """ Tests the extras attribute is cleaned correctly. 
+        """ Tests that raw fields in head are cleaned correctly. 
             Thorough cleaning is done when BeautifulSoup is available.
         """
-        if BeautifulSoup:
-            exp = '<meta name="author" content="seo" />'
-        else:
-            exp = ('<meta name="author" content="seo" /><hr />'
-                  ' No text outside tags please.')
+        exp = '<meta name="author" content="seo" />'
         self.assertEqual(self.meta_data.raw1.value, exp)
         self.assertEqual(unicode(self.meta_data.raw1), exp)
 
     def test_raw2(self):
-        """ Tests the extras attribute is cleaned correctly. 
+        """ Tests that raw fields in head arecleaned correctly. 
             Thorough cleaning is done when BeautifulSoup is available.
         """
-        if BeautifulSoup:
-            exp = '<meta name="author" content="seo" />'
-        else:
-            exp = ('<meta name="author" content="seo" /><script>make_chaos();</script>')
-        self.assertEqual(self.meta_data.raw1.value, exp)
-        self.assertEqual(unicode(self.meta_data.raw1), exp)
+        exp = '<meta name="author" content="seo" />'
+        self.assertEqual(self.meta_data.raw2.value, exp)
+        self.assertEqual(unicode(self.meta_data.raw2), exp)
 
 
 class Definition(TestCase):
@@ -488,9 +516,9 @@ class Random(TestCase):
     def setUp(self):
         self.page = Page.objects.create(type="abc")
         self.content_type = ContentType.objects.get_for_model(Page)
-        self.meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.content_type,
+        self.model_meta_data = Coverage.ModelInstanceMetaData.objects.get(content_type=self.content_type,
                                                     object_id=self.page.id)
-        self.context = get_meta_data(path=self.meta_data.path)
+        self.context = get_meta_data(path=self.model_meta_data.path)
 
     def test_default_fallback(self):
         """ Tests the ability to use the current Site name as a default 
@@ -523,7 +551,7 @@ class Random(TestCase):
         from django.http import HttpRequest
         from django.contrib.admin import site
         request = HttpRequest()
-        form = MetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
+        form = ViewMetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
         assert 'site</option>' not in form.as_table(), form.as_table()
 
     def test_view_admin(self):
@@ -537,9 +565,10 @@ class Random(TestCase):
 
     def test_clean_extra(self):
         """ Checks that extra head data is cleaned. """
-        from rollyourown.seo.admin import MetaDataForm
+        from rollyourown.seo.admin import get_form
         extra = u"<title>My Title</title><link/>And them some<link/>"
-        form = MetaDataForm(instance=self.meta_data, data={'extra': extra })
+        Form = get_form(Coverage)
+        form = Form(instance=self.model_meta_data, data={'extra': extra })
         assert not form.is_valid(), "Form should be rejected."
 
     def test_seo_content_types(self):

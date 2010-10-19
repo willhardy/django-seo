@@ -18,7 +18,7 @@ class Coverage(seo.MetaData):
     title        = seo.Tag(populate_from=seo.Literal(current_site.name), head=True)
     heading      = seo.Tag(max_length=68, name="hs:tag", verbose_name="tag two", head=True)
 
-    keywords     = seo.MetaTag()
+    keywords     = seo.KeywordTag()
     description  = seo.MetaTag(max_length=155, name="hs:metatag", verbose_name="metatag two")
 
     raw1         = seo.Raw()
