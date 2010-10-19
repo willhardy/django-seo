@@ -15,8 +15,10 @@ class DefaultMetaData(seo.MetaData):
     class Meta:
         verbose_name = "Meta data"
         verbose_name_plural = "Meta data"
-        seo_models = getattr(settings, 'SEO_MODELS', [])
         use_sites = False
+        # This default class is automatically created when SEO_MODELS is 
+        # defined, so we'll take our model list from there.
+        seo_models = getattr(settings, 'SEO_MODELS', [])
 
     class HelpText:
         title       = "This is the page title, that appears in the title bar."

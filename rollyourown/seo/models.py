@@ -11,6 +11,7 @@ for app in settings.INSTALLED_APPS:
     except ImportError:
         pass
 
+# if SEO_MODELS is defined, create a default MetaData class
 if hasattr(settings, 'SEO_MODELS'):
     __import__('rollyourown.seo.default')
 
