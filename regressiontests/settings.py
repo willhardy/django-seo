@@ -20,6 +20,10 @@ DATABASES = {
     }
 }
 
+# Old-school fallback
+DATABASE_ENGINE = 'django.db.backends.sqlite3'
+DATABASE_NAME = 'test.db'
+
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
@@ -62,7 +66,7 @@ SECRET_KEY = '+ljg9bcz6t7^9y8ppcxxg5#(%f1p#yj9ot%+e*n5n3y9kg=brm'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
+    #'django.template.loaders.filesystem.Loader',
     'django.template.loaders.app_directories.Loader',
 #     'django.template.loaders.eggs.Loader',
 )
@@ -70,9 +74,9 @@ TEMPLATE_LOADERS = (
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
+    #'django.contrib.messages.middleware.MessageMiddleware',
 )
 
 ROOT_URLCONF = 'regressiontests.urls'
@@ -89,7 +93,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     "django.core.context_processors.i18n",
     "django.core.context_processors.media",
     'django.core.context_processors.request',
-    "django.contrib.messages.context_processors.messages",
+    #"django.contrib.messages.context_processors.messages",
     )
 
 INSTALLED_APPS = [
@@ -99,7 +103,7 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    'django.contrib.messages',
+    #'django.contrib.messages',
     'django.contrib.admin',
     'django.contrib.flatpages',
 ]

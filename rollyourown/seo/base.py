@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * ViewMetaData needs to resolve variables
 #    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
 #    * Add unique constraints for models with/without sites support
-#    * Rewrite resolution to look for populate_from values before looking in other instances
 #    * Admin!
 #    * Tests!
 #    * Caching
 #    * Documentation
-#    * Review escaping: check that autoescape is working. remove '"' in meta tags (maybe also '<', '>', '&')
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -184,15 +181,13 @@ class MetaDataBase(type):
         base_meta = type('Meta', (), Meta)
         class BaseMeta(base_meta):
             abstract = True
-            verbose_name = _('metadata')
-            verbose_name_plural = _('metadata')
-            app_label = None # TODO
+            app_label = 'seo'
         fields['Meta'] = BaseMeta
         fields['__module__'] = attrs['__module__']
         MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
 
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        new_md_attrs = {'_meta_data': new_class, '__module__': attrs['__module__']}
+        new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
         if use_sites: # and Site.objects.is_installed():
             new_md_attrs['site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
         new_class.PathMetaData = type("%sPathMetaData"%name, (PathMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())

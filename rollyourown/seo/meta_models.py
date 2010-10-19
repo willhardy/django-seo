@@ -95,9 +95,10 @@ class PathMetaDataBase(MetaDataBaseModel):
     path    = models.CharField(_('path'), max_length=511)
     objects = PathMetaDataManager()
 
+    def __unicode__(self):
+        return self.path
+
     class Meta:
-        verbose_name = _('path-based metadata')
-        verbose_name_plural = _('path-based metadata')
         abstract = True
 
 # 2. Model-based model
@@ -105,6 +106,9 @@ class ModelMetaDataBase(MetaDataBaseModel):
     content_type   = models.ForeignKey(ContentType, null=True, blank=True)
                                 #limit_choices_to={'id__in': get_seo_content_types(new_class)})
     objects        = ModelMetaDataManager()
+
+    def __unicode__(self):
+        return unicode(self.content_type)
 
     def _set_context(self, instance):
         """ Use the given model instance as context for rendering 
@@ -117,8 +121,6 @@ class ModelMetaDataBase(MetaDataBaseModel):
         return _resolve(value, self.__instance)
 
     class Meta:
-        verbose_name = _('model-based metadata')
-        verbose_name_plural = _('model-based metadata')
         abstract = True
 
 # 3. Model-instance-based model
@@ -130,9 +132,10 @@ class ModelInstanceMetaDataBase(MetaDataBaseModel):
     content_object = generic.GenericForeignKey('content_type', 'object_id')
     objects        = ModelInstanceMetaDataManager()
 
+    def __unicode__(self):
+        return self.path
+
     class Meta:
-        verbose_name = _('model-instance-based metadata')
-        verbose_name_plural = _('model-instance-based metadata')
         unique_together = ('content_type', 'object_id')
         abstract = True
 
@@ -141,9 +144,10 @@ class ViewMetaDataBase(MetaDataBaseModel):
     view = SystemViewField(blank=True, null=True)
     objects = ViewMetaDataManager()
 
+    def __unicode__(self):
+        return self.view
+
     class Meta:
-        verbose_name = _('view-based metadata')
-        verbose_name_plural = _('view-based metadata')
         abstract = True
 
     def _set_context(self, context):
