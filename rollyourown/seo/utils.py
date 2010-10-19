@@ -112,34 +112,18 @@ def _resolver_resolve_to_name(resolver, path):
                 tried.append(pattern.regex.pattern)
         raise Resolver404, {'tried': tried, 'path': new_path}
 
+
 def resolve_to_name(path, urlconf=None):
     try:
         return _resolver_resolve_to_name(get_resolver(urlconf), path)
     except Resolver404:
         return None
 
-try:
-    from BeautifulSoup import BeautifulSoup
-except ImportError:
-    BeautifulSoup = None
-
-# XXX: Replace with escape_tags
-def strip_tags(value, valid_tags):
-    """ Strips text from the given html string, leaving only tags.
-        This functionality requires BeautifulSoup, nothing will be 
-        done otherwise.
-    """
-    # TODO Test that tags inside eg <meta> tags or scripts are left alone
-    if BeautifulSoup is None:
-        return value
-    soup = BeautifulSoup(value)
-    [ tag.extract() for tag in list(soup) if not (getattr(tag, 'name', None) in valid_tags) ]
-    # XXX XXX Why str?
-    return str(soup)
 
 def _replace_quot(match):
     unescape = lambda v: v.replace('&quot;', '"').replace('&amp;', '&')
     return u'<%s%s>' % (unescape(match.group(1)), unescape(match.group(3)))
+
 
 def escape_tags(value, valid_tags):
     """ Strips text from the given html string, leaving only tags.

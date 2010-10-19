@@ -22,10 +22,6 @@ from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.conf import settings
-try:
-    import BeautifulSoup
-except ImportError:
-    BeautifulSoup = None
 
 from rollyourown.seo import get_meta_data as seo_get_meta_data
 from userapp.models import Page, Product, Category, NoPath
@@ -374,7 +370,6 @@ class Formatting(TestCase):
     
     def test_html(self):
         """ Tests html generation is performed correctly.
-            Thorough cleaning is done when BeautifulSoup is available.
         """
         exp = """<title>The <strong>Title</strong></title>
 <hs:tag>The <em>Heading</em></hs:tag>
@@ -457,7 +452,6 @@ class Formatting(TestCase):
 
     def test_raw1(self):
         """ Tests that raw fields in head are cleaned correctly. 
-            Thorough cleaning is done when BeautifulSoup is available.
         """
         exp = '<meta name="author" content="seo" />'
         self.assertEqual(self.meta_data.raw1.value, exp)
@@ -465,7 +459,6 @@ class Formatting(TestCase):
 
     def test_raw2(self):
         """ Tests that raw fields in head arecleaned correctly. 
-            Thorough cleaning is done when BeautifulSoup is available.
         """
         exp = '<meta name="author" content="seo" />'
         self.assertEqual(self.meta_data.raw2.value, exp)
