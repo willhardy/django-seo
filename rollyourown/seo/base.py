@@ -74,7 +74,7 @@ class FormattedMetaData(object):
     def __getattr__(self, name):
         # Look for a group called "name"
         if name in self.__metadata.groups:
-            return '\n'.join(BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(f)) for f in self.__metadata.groups[name])
+            return '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata.groups[name]).strip()
         # Look for an element called "name"
         elif name in self.__metadata.elements:
             return BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(name))

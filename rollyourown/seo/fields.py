@@ -167,11 +167,11 @@ class Raw(MetaDataField):
 
         if self.head:
             # Remove text before tags
-            before_tags = re.compile("^([^<].*)<")
+            before_tags = re.compile("^([^<>]*)<")
             value = before_tags.sub('<', value)
 
             # Remove text after tags
-            after_tags = re.compile(">([^<].*)$")
+            after_tags = re.compile(">([^<>]*)$")
             value = after_tags.sub('>', value)
 
         return value

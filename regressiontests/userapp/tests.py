@@ -218,6 +218,32 @@ class DataSelection(TestCase):
         self.assertEqual(Coverage.ModelInstanceMetaData.objects.all().count(), num_meta_data - 1)
         self.assertEqual(Coverage.ModelInstanceMetaData.objects.filter(path=old_path).count(), 0)
 
+    def test_group(self):
+        """ Checks that groups can be accessed directly. """
+        path = self.path_meta_data.path
+        self.path_meta_data.raw1 = "<title>Raw 1</title>"
+        self.path_meta_data.raw2 = "<title>Raw 1</title>"
+        self.path_meta_data.help_text1 = "Help Text 1"
+        self.path_meta_data.help_text3 = "Help Text 3"
+        self.path_meta_data.help_text4 = "Help Text 4"
+        self.path_meta_data.save()
+
+        self.assertEqual(get_meta_data(path).advanced, u'<title>Raw 1</title>\n<title>Raw 1</title>')
+        self.assertEqual(get_meta_data(path).help_text, u'''<help_text1>Help Text 1</help_text1>
+
+<help_text3>Help Text 3</help_text3>
+<help_text4>Help Text 4</help_text4>''')
+
+    def test_wrong_name(self):
+        """ Missing attribute should raise an AttributeError. """
+        path = self.path_meta_data.path
+        meta_data = get_meta_data(path)
+        try:
+            meta_data.this_does_not_exist
+        except AttributeError:
+            pass
+        else:
+            self.fail("AttributeError should be raised on missing FormattedMetaData attribute.")
 
 class ValueResolution(TestCase):
     """ Value resolution (unit tests)
@@ -475,12 +501,25 @@ class Formatting(TestCase):
         self.assertEqual(unicode(self.meta_data.raw1), exp)
 
     def test_raw2(self):
-        """ Tests that raw fields in head arecleaned correctly. 
+        """ Tests that raw fields in head are cleaned correctly. 
         """
         exp = '<meta name="author" content="seo" />'
         self.assertEqual(self.meta_data.raw2.value, exp)
         self.assertEqual(unicode(self.meta_data.raw2), exp)
 
+    def test_raw3(self):
+        """ Checks that raw fields aren't cleaned too enthusiastically  """
+        self.path_meta_data.raw1 = '<title>Raw title 1</title>'
+        self.path_meta_data.raw2 = '<title>Raw title 2</title>'
+        self.path_meta_data.save()
+        meta_data = get_meta_data(path="/")
+
+        exp = '<title>Raw title 1</title>'
+        self.assertEqual(meta_data.raw1.value, exp)
+        self.assertEqual(unicode(meta_data.raw1), exp)
+        exp = '<title>Raw title 2</title>'
+        self.assertEqual(meta_data.raw2.value, exp)
+        self.assertEqual(unicode(meta_data.raw2), exp)
 
 class Definition(TestCase):
     """ Definition (System tests)
