@@ -44,8 +44,11 @@ class LazyList(list):
         """ Populate this list by calling populate(), but only once. """
         if not self._populated:
             logging.debug("Populating lazy list %d (%s)" % (id(self), self.__class__.__name__))
-            self.populate()
-            self._populated = True
+            try:
+                self.populate()
+                self._populated = True
+            except Exception, e:
+                logging.debug("Currently unable to populate lazy list: %s" % e)
 
     # Accessing methods that require a populated field
     def __len__(self):

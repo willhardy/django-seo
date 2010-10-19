@@ -10,11 +10,11 @@ register_seo_admin(admin.site, WithSites)
 
 from userapp.models import Product, Page, Category
 
-class ProductAdmin(admin.ModelAdmin):
+class WithMetaDataAdmin(admin.ModelAdmin):
     inlines = [get_inline(Coverage), get_inline(WithSites)]
 
-class PageAdmin(admin.ModelAdmin):
-    inlines = [get_inline(Coverage), get_inline(WithSites)]
+admin.site.register(Product, WithMetaDataAdmin)
+admin.site.register(Page, WithMetaDataAdmin)
 
-admin.site.register(Product)#, ProductAdmin)
-admin.site.register(Page, PageAdmin)
+from rollyourown.seo.default import DefaultMetaData
+register_seo_admin(admin.site, DefaultMetaData)

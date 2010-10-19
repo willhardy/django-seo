@@ -15,6 +15,7 @@ from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.utils.safestring import mark_safe
+from django.db.models.options import get_verbose_name
 
 from rollyourown.seo.utils import NotSet, Literal
 
@@ -123,6 +124,8 @@ class MetaDataBase(type):
         use_sites = Meta.pop('use_sites', False)
         seo_models = Meta.pop('seo_models', [])
         help_text = attrs.pop('HelpText', {})
+        verbose_name = Meta.pop('verbose_name', None)
+        verbose_name_plural = Meta.pop('verbose_name_plural', None)
         if help_text:
             help_text = help_text.__dict__.copy()
 
@@ -145,11 +148,13 @@ class MetaDataBase(type):
         new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
 
         # Some useful attributes
-        # TODO: Move these out of the way (subclasses will want to use their own attributes)
+        # TODO: Move these polluting names out of the way (subclasses will want to use their own attributes)
         new_class.seo_models = seo_models
         new_class.elements = elements
         new_class.groups = groups
         new_class.use_sites = use_sites
+        new_class.verbose_name = verbose_name or get_verbose_name(name)
+        new_class.verbose_name_plural = verbose_name_plural or new_class.verbose_name + 's'
 
         # TODO: Reorganise? should this happen somewhere else?
         for key, obj in elements.items():
@@ -185,14 +190,21 @@ class MetaDataBase(type):
         fields['__module__'] = attrs['__module__']
         MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
 
+        # Function to build our subclasses for us
+        def create_new_class(md_type, base):
+            new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
+            if use_sites:
+                new_md_attrs['site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
+            verbose_name = '%s (%s)' % (new_class.verbose_name, md_type)
+            verbose_name_plural = '%s (%s)' % (new_class.verbose_name_plural, md_type)
+            new_md_attrs['Meta'] = type("Meta", (), {'verbose_name': verbose_name,  'verbose_name_plural': verbose_name_plural})
+            return type("%s%s"%(name,"".join(md_type.split())), (base, MetaDataBaseModel), new_md_attrs.copy())
+
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
-        if use_sites: # and Site.objects.is_installed():
-            new_md_attrs['site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-        new_class.PathMetaData = type("%sPathMetaData"%name, (PathMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
-        new_class.ModelMetaData = type("%sModelMetaData"%name, (ModelMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
-        new_class.ModelInstanceMetaData = type("%sModelInstanceMetaData"%name, (ModelInstanceMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
-        new_class.ViewMetaData = type("%sViewMetaData"%name, (ViewMetaDataBase, MetaDataBaseModel), new_md_attrs.copy())
+        new_class.PathMetaData = create_new_class('Path', PathMetaDataBase)
+        new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataBase)
+        new_class.ModelMetaData = create_new_class('Model', ModelMetaDataBase)
+        new_class.ViewMetaData = create_new_class('View', ViewMetaDataBase)
 
         registry[name] = new_class
 

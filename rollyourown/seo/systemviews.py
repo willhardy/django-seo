@@ -80,6 +80,7 @@ class SystemViewField(models.CharField):
 # help south understand our models
 try:
     from south.modelsinspector import add_introspection_rules
-    add_introspection_rules([], ["^seo\.fields"])
 except ImportError:
     pass
+else:
+    add_introspection_rules([], ["^seo\.fields"])

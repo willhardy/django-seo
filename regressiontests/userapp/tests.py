@@ -14,8 +14,6 @@
     * Random (series of various uncategorised tests)
 
     TODO: 
-        - groups (with direct access)
-        - wrong element name on FormattedMetaData
         - help text from HelpText
         - auto help text (populate_from)
         - auto help text (short_description)
