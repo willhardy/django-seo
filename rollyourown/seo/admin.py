@@ -9,6 +9,8 @@ from django.utils.encoding import smart_unicode
 from rollyourown.seo.meta_models import _get_seo_models
 from rollyourown.seo.modelmetadata import get_seo_content_types
 
+# TODO Use groups as fieldsets
+
 # Varients without sites support
 
 class PathMetaDataAdmin(admin.ModelAdmin):

@@ -1,3 +1,5 @@
 *.pyc
 coverage/*
 docs/_build
+regressiontests/test.db
+rollyourown/seo/kogan.py
