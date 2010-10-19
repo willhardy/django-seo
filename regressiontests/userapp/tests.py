@@ -538,33 +538,4 @@ class Random(TestCase):
         new_num_meta_data = Coverage.ModelInstanceMetaData.objects.all().count()
         self.assertEqual(num_meta_data, new_num_meta_data)
 
-    def test_contenttypes_admin(self):
-        """ Checks the custom field for the ViewMetaData admin works correctly. """
-        from rollyourown.seo.admin import MetaDataAdmin
-        from django.http import HttpRequest
-        from django.contrib.admin import site
-        request = HttpRequest()
-        form = ViewMetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
-        assert 'site</option>' not in form.as_table(), form.as_table()
-
-    def test_view_admin(self):
-        """ Checks the custom field for the ViewMetaData admin works correctly. """
-        from rollyourown.seo.admin import ViewMetaDataAdmin
-        from django.http import HttpRequest
-        from django.contrib.admin import site
-        request = HttpRequest()
-        form = ViewMetaDataAdmin(Coverage.ViewMetaData, site).get_form(request)()
-        assert '<option value="userapp_my_view">userapp my view</option>' in form.as_table(), form.as_table()
-
-    def test_clean_extra(self):
-        """ Checks that extra head data is cleaned. """
-        from rollyourown.seo.admin import get_form
-        extra = u"<title>My Title</title><link/>And them some<link/>"
-        Form = get_form(Coverage)
-        form = Form(instance=self.model_meta_data, data={'extra': extra })
-        assert not form.is_valid(), "Form should be rejected."
-
-    def test_seo_content_types(self):
-        """ Checks the creation of choices for the SEO content types. """
-
 

@@ -2,14 +2,13 @@
 # -*- coding: UTF-8 -*-
 
 from django.utils.functional import lazy
-from django.db.utils import DatabaseError
 
 def _get_seo_content_types(seo_models):
     """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
     try:
         from django.contrib.contenttypes.models import ContentType
         return [ ContentType.objects.get_for_model(m).id for m in seo_models ]
-    except DatabaseError:
+    except: # previously caught DatabaseError
         # Return an empty list if this is called too early
         return []
 def get_seo_content_types(seo_models):
