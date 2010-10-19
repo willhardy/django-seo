@@ -13,6 +13,16 @@
     * Templates (System tests)
     * Random (series of various uncategorised tests)
 
+    TODO: 
+        - groups (with direct access)
+        - wrong element name on FormattedMetaData
+        - help text from HelpText
+        - auto help text (populate_from)
+        - auto help text (short_description)
+        - choices argument to Tag, MetaTag etc
+        - valid_tags given as a string
+        - seo_models = appname.modelname (ie with a dot)
+
 """
 import logging
 import StringIO

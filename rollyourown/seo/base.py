@@ -2,6 +2,7 @@
 
 # TODO:
 #    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
+#    * Help Text not showing in Admin
 #    * Add unique constraints for models with/without sites support
 #    * Caching
 #    * Documentation
