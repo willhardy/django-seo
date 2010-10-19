@@ -22,7 +22,7 @@ class MetaDataNode(template.Node):
                   "'django.core.context_processors.request' context processor.")
             logging.warning(msg) # or is this an error?
         else:
-            meta_data = get_meta_data(path, self.meta_data_name)
+            meta_data = get_meta_data(path, self.meta_data_name, context)
             if self.variable_name is not None:
                 context[self.variable_name] = meta_data
             else:

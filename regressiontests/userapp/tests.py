@@ -331,7 +331,7 @@ class ValueResolution(TestCase):
         response = self.client.get(reverse('userapp_my_view', args=["abc123"]))
         self.assertContains(response, u'<title>MD abc123 Title</title>')
         self.assertContains(response, u'<meta name="keywords" content="MD abc123 Keywords" />')
-        self.assertContains(response, u'<meta name="description" content="MD abc123 Description" />')
+        self.assertContains(response, u'<meta name="hs:metatag" content="MD abc123 Description" />')
 
     def test_not_request_context(self):
         """ Tests the view meta data on a view that is not a request context. """

@@ -22,7 +22,6 @@ from django.utils.safestring import mark_safe
 
 from rollyourown.seo.utils import NotSet, Literal
 
-from django.template import Template, Context
 from rollyourown.seo.fields import MetaDataField
 from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
 from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase
@@ -207,13 +206,13 @@ class MetaDataBase(type):
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
-    def _get_formatted_data(cls, path):
+    def _get_formatted_data(cls, path, context=None):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls(), cls._get_instances(path))
+        return FormattedMetaData(cls(), cls._get_instances(path, context))
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
-    def _get_instances(cls, path):
+    def _get_instances(cls, path, context=None):
         """ A sequence of instances to discover metadata. 
             Each of the four meta data types are looked up when possible/necessary
         """
@@ -232,7 +231,9 @@ class MetaDataBase(type):
             pass
 
         try:
-            yield cls.ViewMetaData.objects.get_from_path(path)
+            i3 = cls.ViewMetaData.objects.get_from_path(path)
+            i3._set_context(context)
+            yield i3
         except cls.ViewMetaData.DoesNotExist:
             pass
 
@@ -259,26 +260,15 @@ class MetaData(object):
     __metaclass__ = MetaDataBase
 
 
-def get_meta_data(path, name=None):
+def get_meta_data(path, name=None, context=None):
     # Find registered MetaData object
     if name is not None:
         metadata = registry[name]
     else:
         assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
         metadata = registry.values()[0]
-    return metadata._get_formatted_data(path)
+    return metadata._get_formatted_data(path, context)
 
-
-def _resolve(value, model_instance=None, context_instance=None):
-    """ Resolves any template references in the given value. 
-    """
-    if isinstance(value, basestring) and "{" in value:
-        if context_instance is None:
-            context_instance = Context()
-        if model_instance is not None:
-            context_instance[model_instance._meta.module_name] = model_instance
-        value = Template(value).render(context_instance)
-    return value
 
 
 def _update_callback(model_class, sender, instance, created, **kwargs):

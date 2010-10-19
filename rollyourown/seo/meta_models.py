@@ -7,6 +7,8 @@ from django.db import models
 from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
+from django.template import Template, Context
+
 #from rollyourown.seo.modelmetadata import get_seo_content_types
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
@@ -110,15 +112,9 @@ class ModelMetaDataBase(MetaDataBaseModel):
         """
         self.__instance = instance
 
-    def __getattribute__(self, name):
-        # Any values coming from elements should be parsed and resolved.
-        value = super(ModelMetaDataBase, self).__getattribute__(name)
-        if (name in (f.name for f in super(ModelMetaDataBase, self).__getattribute__('_meta').fields) 
-            and '_ModelMetaData__instance' in super(ModelMetaDataBase, self).__getattribute__('__dict__')):
-            instance = super(ModelMetaDataBase, self).__getattribute__('_ModelMetaData__instance')
-            return _resolve(value, instance)
-        else: 
-            return value
+    def _resolve_value(self, name):
+        value = super(ModelMetaDataBase, self)._resolve_value(name)
+        return _resolve(value, self.__instance)
 
     class Meta:
         verbose_name = _('model-based metadata')
@@ -149,3 +145,25 @@ class ViewMetaDataBase(MetaDataBaseModel):
         verbose_name = _('view-based metadata')
         verbose_name_plural = _('view-based metadata')
         abstract = True
+
+    def _set_context(self, context):
+        """ Use the context when rendering any substitutions.  """
+        self.__context = context
+
+    def _resolve_value(self, name):
+        value = super(ViewMetaDataBase, self)._resolve_value(name)
+        return _resolve(value, context=self.__context)
+
+
+def _resolve(value, model_instance=None, context=None):
+    """ Resolves any template references in the given value. 
+    """
+
+    if isinstance(value, basestring) and "{" in value:
+        if context is None:
+            context = Context()
+        if model_instance is not None:
+            context[model_instance._meta.module_name] = model_instance
+        value = Template(value).render(context)
+    return value
+
