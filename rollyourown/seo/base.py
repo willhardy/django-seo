@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Help Text not showing in Admin
 #    * Add unique constraints for models with/without sites support
 #    * Caching
 #    * Documentation
@@ -175,15 +174,9 @@ class MetaDataBase(type):
         for key, obj in elements.items():
             if obj.editable:
                 field = obj.get_field()
-                populate_from = getattr(field, 'populate_from', None)
-                # Add field help text if missing, add something useful
                 if not field.help_text:
                     if key in help_text:
                         field.help_text = help_text[key]
-                    elif populate_from and populate_from in elements:
-                        field.help_text = _("If empty, %s will be used") % elements[populate_from].verbose_name
-                    elif populate_from and hasattr(populate_from, 'short_description'):
-                        field.help_text = _("If empty: %s.") % populate_from.short_description
                 fields[key] = field
 
         # 0. Abstract base model with common fields

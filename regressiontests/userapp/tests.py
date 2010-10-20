@@ -14,9 +14,6 @@
     * Random (series of various uncategorised tests)
 
     TODO: 
-        - help text from HelpText
-        - auto help text (populate_from)
-        - auto help text (short_description)
         - choices argument to Tag, MetaTag etc
         - valid_tags given as a string
         - seo_models = appname.modelname (ie with a dot)
@@ -530,8 +527,26 @@ class Definition(TestCase):
         + If help_text used, this is passed onto the field
             + the populate_from of the field is sometimes mentioned automatically in the help_text:
             + if populate_from value is a field name: "If empty, {{ field_name }} will be used"
-            + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }} will be used."
+            + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }}."
     """
+    def test_help_text_direct(self):
+        self.assert_help_text('help_text1', "Some help text 1.")
+    def test_help_text_class(self):
+        self.assert_help_text('help_text2', "Updated help text2.")
+    def test_help_text_field(self):
+        self.assert_help_text('help_text6', "Some help text 6.")
+        self.assert_help_text('help_text5', "If empty, heading will be used.")
+    def test_help_text_callable(self):
+        self.assert_help_text('help_text3', "Some help text 3.")
+        self.assert_help_text('help_text4', "If empty, Always xyz")
+    def test_help_text_literal(self):
+        self.assert_help_text('populate_from3', "If empty, \"efg\" will be used.")
+
+    def assert_help_text(self, name, text):
+        self.assertEqual(Coverage.PathMetaData._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage.ModelInstanceMetaData._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage.ModelMetaData._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage.ViewMetaData._meta.get_field(name).help_text, text)
 
 class MetaOptions(TestCase):
     """ Meta options (System tests)

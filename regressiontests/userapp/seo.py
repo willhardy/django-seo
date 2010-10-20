@@ -26,8 +26,10 @@ class Coverage(seo.MetaData):
 
     help_text1   = seo.Tag(help_text="Some help text 1.")
     help_text2   = seo.Tag(populate_from="def")
-    help_text3   = seo.Tag(help_text="Some help text 3.", populate_from=get_populate_from1)
+    help_text3   = seo.Tag(populate_from=get_populate_from1, help_text="Some help text 3.")
     help_text4   = seo.Tag(populate_from=get_populate_from2)
+    help_text5   = seo.Tag(populate_from="heading")
+    help_text6   = seo.Tag(populate_from="heading", help_text="Some help text 6.")
 
     populate_from1     = seo.Tag(populate_from="get_populate_from1")
     populate_from2     = seo.Tag(populate_from="heading")
