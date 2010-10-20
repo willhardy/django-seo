@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Validate bad field names (path, content_type etc) or even better: allow them by renaming system fields
 #    * Help Text not showing in Admin
 #    * Add unique constraints for models with/without sites support
 #    * Caching
@@ -23,6 +22,7 @@ from rollyourown.seo.fields import MetaDataField
 from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
 from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase, _get_seo_models
 from rollyourown.seo.meta_models import PathMetaDataManager, ModelMetaDataManager, ModelInstanceMetaDataManager, ViewMetaDataManager
+from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES
 
 
 registry = SortedDict()
@@ -137,12 +137,17 @@ class MetaDataBase(type):
         elements = SortedDict(elements)
 
         # Validation:
-        # Check that no group names clash with element names
         # TODO: Write a test framework for seo.MetaData validation
+        # Check that no group names clash with element names
         for key,members in groups.items():
             assert key not in elements, "Group name '%s' clashes with field name" % key
             for member in members:
                 assert member in elements, "Group member '%s' is not a valid field" % member
+
+        # Check that the names of the elements are not going to clash with a model field
+        for key in elements:
+            assert key not in RESERVED_FIELD_NAMES, "Field name '%s' is not allowed" % key
+
 
         # Preprocessing complete, here is the new class
         new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
@@ -192,9 +197,10 @@ class MetaDataBase(type):
 
         # Function to build our subclasses for us
         def create_new_class(md_type, base):
+            # TODO: Rename this field
             new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
             if use_sites:
-                new_md_attrs['site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
+                new_md_attrs['_site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
             verbose_name = '%s (%s)' % (new_class.verbose_name, md_type)
             verbose_name_plural = '%s (%s)' % (new_class.verbose_name_plural, md_type)
             new_md_attrs['Meta'] = type("Meta", (), {'verbose_name': verbose_name,  'verbose_name_plural': verbose_name_plural})
@@ -230,8 +236,8 @@ class MetaDataBase(type):
         try:
             i = cls.ModelInstanceMetaData.objects.get_from_path(path)
             yield i
-            i2 = cls.ModelMetaData.objects.get_from_content_type(i.content_type)
-            i2._set_context(i.content_object)
+            i2 = cls.ModelMetaData.objects.get_from_content_type(i._content_type)
+            i2._set_context(i._content_object)
             yield i2
         except (cls.ModelInstanceMetaData.DoesNotExist, cls.ModelMetaData.DoesNotExist):
             pass
@@ -286,8 +292,8 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
         # If another object has the same path, remove the path.
         # It's harsh, but we need a unique path and will assume the other
         # link is outdated.
-        if meta_data.content_type != content_type or meta_data.object_id != instance.pk:
-            meta_data.path = meta_data.content_object.get_absolute_url()
+        if meta_data._content_type != content_type or meta_data._object_id != instance.pk:
+            meta_data._path = meta_data._content_object.get_absolute_url()
             meta_data.save()
             # Move on, this meta_data instance isn't for us
             meta_data = None
@@ -297,8 +303,8 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
     # If the path-based search didn't work, look for (or create) an existing
     # instance linked to this object.
     if not meta_data:
-        meta_data, md_created = model_class.objects.get_or_create(content_type=content_type, object_id=instance.pk)
-        meta_data.path = path
+        meta_data, md_created = model_class.objects.get_or_create(_content_type=content_type, _object_id=instance.pk)
+        meta_data._path = path
         meta_data.save()
     
     # XXX Update the MetaData instance with data from the object
@@ -306,7 +312,7 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
 def _delete_callback(model_class, sender, instance,  **kwargs):
     content_type = ContentType.objects.get_for_model(instance)
     try:
-        model_class.objects.get(content_type=content_type, object_id=instance.pk).delete()
+        model_class.objects.get(_content_type=content_type, _object_id=instance.pk).delete()
     except:
         pass
 

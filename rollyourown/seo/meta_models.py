@@ -12,32 +12,35 @@ from django.template import Template, Context
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
+RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id', '_content_object', '_view', '_site', 'objects', '_resolve_value', '_set_context', 'id', 'pk')
+# Also Meta, but this is difficult to check
+
 class MetaDataManager(models.Manager):
     def on_current_site(self):
         queryset = super(MetaDataManager, self).get_query_set()
         # If we are using sites, exclude irrelevant data
         if self.model._meta_data.use_sites:
             # Exclude entries for other sites, keep site=current and site=null
-            queryset = queryset.extra(where=['site_id IS NULL OR site_id=%s'], params=[settings.SITE_ID])
+            queryset = queryset.extra(where=['_site_id IS NULL OR _site_id=%s'], params=[settings.SITE_ID])
         return queryset
 
 class PathMetaDataManager(MetaDataManager):
     def get_from_path(self, path):
-        return self.on_current_site().get(path=path)
+        return self.on_current_site().get(_path=path)
 
 class ModelMetaDataManager(MetaDataManager):
     def get_from_content_type(self, content_type):
-        return self.on_current_site().get(content_type=content_type)
+        return self.on_current_site().get(_content_type=content_type)
 
 class ModelInstanceMetaDataManager(MetaDataManager):
     def get_from_path(self, path):
-        return self.on_current_site().get(path=path)
+        return self.on_current_site().get(_path=path)
 
 class ViewMetaDataManager(MetaDataManager):
     def get_from_path(self, path):
         view_name = resolve_to_name(path)
         if view_name is not None:
-            return self.on_current_site().get(view=view_name)
+            return self.on_current_site().get(_view=view_name)
         raise self.model.DoesNotExist()
 
 class MetaDataBaseModel(models.Model):
@@ -49,8 +52,10 @@ class MetaDataBaseModel(models.Model):
         super(MetaDataBaseModel, self).__init__(*args, **kwargs)
 
         # Provide access to a class instance
+        # TODO Rename to __meta_data
         self._meta_data = self.__class__._meta_data()
 
+    # TODO Rename to __resolve_value
     def _resolve_value(self, name):
         """ Returns an appropriate value for the given name. """
         name = str(name)
@@ -92,22 +97,22 @@ class MetaDataBaseModel(models.Model):
 
 # 1. Path-based model
 class PathMetaDataBase(MetaDataBaseModel):
-    path    = models.CharField(_('path'), max_length=511)
+    _path    = models.CharField(_('path'), max_length=511)
     objects = PathMetaDataManager()
 
     def __unicode__(self):
-        return self.path
+        return self._path
 
     class Meta:
         abstract = True
 
 # 2. Model-based model
 class ModelMetaDataBase(MetaDataBaseModel):
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True)
+    _content_type   = models.ForeignKey(ContentType, null=True, blank=True)
     objects        = ModelMetaDataManager()
 
     def __unicode__(self):
-        return unicode(self.content_type)
+        return unicode(self._content_type)
 
     def _set_context(self, instance):
         """ Use the given model instance as context for rendering 
@@ -124,26 +129,26 @@ class ModelMetaDataBase(MetaDataBaseModel):
 
 # 3. Model-instance-based model
 class ModelInstanceMetaDataBase(MetaDataBaseModel):
-    path           = models.CharField(_('path'), max_length=511)
-    content_type   = models.ForeignKey(ContentType, null=True, blank=True, editable=False)
-    object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+    _path           = models.CharField(_('path'), max_length=511)
+    _content_type   = models.ForeignKey(ContentType, null=True, blank=True, editable=False)
+    _object_id      = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    _content_object = generic.GenericForeignKey('_content_type', '_object_id')
     objects        = ModelInstanceMetaDataManager()
 
     def __unicode__(self):
-        return self.path
+        return self._path
 
     class Meta:
-        unique_together = ('content_type', 'object_id')
+        unique_together = ('_content_type', '_object_id')
         abstract = True
 
 # 4. View-based model
 class ViewMetaDataBase(MetaDataBaseModel):
-    view = SystemViewField(blank=True, null=True)
+    _view = SystemViewField(blank=True, null=True)
     objects = ViewMetaDataManager()
 
     def __unicode__(self):
-        return self.view
+        return self._view
 
     class Meta:
         abstract = True

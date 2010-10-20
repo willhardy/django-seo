@@ -14,35 +14,35 @@ from rollyourown.seo.modelmetadata import get_seo_content_types
 # Varients without sites support
 
 class PathMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path',)
+    list_display = ('_path',)
 
 class ModelInstanceMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path', 'content_type', 'object_id')
+    list_display = ('_path', '_content_type', '_object_id')
 
 class ModelMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('content_type',)
+    list_display = ('_content_type',)
 
 class ViewMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('view', )
+    list_display = ('_view', )
 
 
 # Varients with sites support
 
 class SitePathMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path', 'site')
-    list_filter = ('site',)
+    list_display = ('_path', '_site')
+    list_filter = ('_site',)
 
 class SiteModelInstanceMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('path', 'content_type', 'object_id', 'site')
-    list_filter = ('site', 'content_type')
+    list_display = ('_path', '_content_type', '_object_id', '_site')
+    list_filter = ('_site', '_content_type')
 
 class SiteModelMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('content_type', 'site')
-    list_filter = ('site',)
+    list_display = ('_content_type', '_site')
+    list_filter = ('_site',)
 
 class SiteViewMetaDataAdmin(admin.ModelAdmin):
-    list_display = ('view', 'site')
-    list_filter = ('site',)
+    list_display = ('_view', '_site')
+    list_filter = ('_site',)
 
 
 def register_seo_admin(admin_site, meta_data_class):
