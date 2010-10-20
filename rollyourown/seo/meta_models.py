@@ -12,7 +12,9 @@ from django.template import Template, Context
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
-RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id', '_content_object', '_view', '_site', 'objects', '_resolve_value', '_set_context', 'id', 'pk')
+RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id',
+                        '_content_object', '_view', '_site', 'objects', 
+                        '_resolve_value', '_set_context', 'id', 'pk' )
 # Also Meta, but this is difficult to check
 
 class MetaDataManager(models.Manager):
@@ -100,11 +102,13 @@ class PathMetaDataBase(MetaDataBaseModel):
     _path    = models.CharField(_('path'), max_length=511)
     objects = PathMetaDataManager()
 
+
     def __unicode__(self):
         return self._path
 
     class Meta:
         abstract = True
+        unique_together = ('_path',)
 
 # 2. Model-based model
 class ModelMetaDataBase(MetaDataBaseModel):
@@ -126,6 +130,7 @@ class ModelMetaDataBase(MetaDataBaseModel):
 
     class Meta:
         abstract = True
+        unique_together = ('_content_type',)
 
 # 3. Model-instance-based model
 class ModelInstanceMetaDataBase(MetaDataBaseModel):
@@ -152,6 +157,7 @@ class ViewMetaDataBase(MetaDataBaseModel):
 
     class Meta:
         abstract = True
+        unique_together = ('_view',)
 
     def _set_context(self, context):
         """ Use the context when rendering any substitutions.  """

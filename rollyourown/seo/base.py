@@ -194,9 +194,17 @@ class MetaDataBase(type):
             new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
             if use_sites:
                 new_md_attrs['_site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-            verbose_name = '%s (%s)' % (new_class.verbose_name, md_type)
-            verbose_name_plural = '%s (%s)' % (new_class.verbose_name_plural, md_type)
-            new_md_attrs['Meta'] = type("Meta", (), {'verbose_name': verbose_name,  'verbose_name_plural': verbose_name_plural})
+            unique_together = [base._meta.unique_together + (use_sites and ('_site',) or ())]
+
+            new_md_meta = {}
+            new_md_meta['verbose_name'] = '%s (%s)' % (new_class.verbose_name, md_type)
+            new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class.verbose_name_plural, md_type)
+            if len(unique_together) >= 2:
+                new_md_meta['unique_together'] = unique_together
+            else:
+                # TODO: There may not be a way to enforce unique for single combinations 
+                pass
+            new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
             return type("%s%s"%(name,"".join(md_type.split())), (base, MetaDataBaseModel), new_md_attrs.copy())
 
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
