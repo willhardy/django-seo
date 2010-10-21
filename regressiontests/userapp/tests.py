@@ -27,6 +27,7 @@ from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.conf import settings
+from django.db import IntegrityError
 
 from rollyourown.seo import get_meta_data as seo_get_meta_data
 from userapp.models import Page, Product, Category, NoPath
@@ -516,6 +517,7 @@ class Formatting(TestCase):
         self.assertEqual(meta_data.raw2.value, exp)
         self.assertEqual(unicode(meta_data.raw2), exp)
 
+
 class Definition(TestCase):
     """ Definition (System tests)
         + if "head" is True, tag is automatically included in the head
@@ -531,14 +533,18 @@ class Definition(TestCase):
     """
     def test_help_text_direct(self):
         self.assert_help_text('help_text1', "Some help text 1.")
+
     def test_help_text_class(self):
         self.assert_help_text('help_text2', "Updated help text2.")
+
     def test_help_text_field(self):
         self.assert_help_text('help_text6', "Some help text 6.")
         self.assert_help_text('help_text5', "If empty, heading will be used.")
+
     def test_help_text_callable(self):
         self.assert_help_text('help_text3', "Some help text 3.")
         self.assert_help_text('help_text4', "If empty, Always xyz")
+
     def test_help_text_literal(self):
         self.assert_help_text('populate_from3', "If empty, \"efg\" will be used.")
 
@@ -547,6 +553,28 @@ class Definition(TestCase):
         self.assertEqual(Coverage.ModelInstanceMetaData._meta.get_field(name).help_text, text)
         self.assertEqual(Coverage.ModelMetaData._meta.get_field(name).help_text, text)
         self.assertEqual(Coverage.ViewMetaData._meta.get_field(name).help_text, text)
+
+    def test_uniqueness(self):
+        # Check a path for uniqueness
+        Coverage.PathMetaData.objects.create(_path="/unique/")
+        try:
+            Coverage.PathMetaData.objects.create(_path="/unique/")
+            self.fail("Exception not raised when duplicate path created")
+        except IntegrityError:
+            pass
+
+        # Check that uniqueness handles sites correctly
+        current_site = Site.objects.get_current()
+        WithSites.PathMetaData.objects.create(_site=current_site, _path="/unique/")
+        pmd = WithSites.PathMetaData.objects.create(_site=None, _path="/unique/")
+        pmd._site_id = current_site.id + 1
+        pmd.save()
+        try:
+            WithSites.PathMetaData.objects.create(_site=current_site, _path="/unique/")
+            self.fail("Exception not raised when duplicate path/site combination created")
+        except IntegrityError:
+            pass
+
 
 class MetaOptions(TestCase):
     """ Meta options (System tests)

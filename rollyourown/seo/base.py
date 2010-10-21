@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Add unique constraints for models with/without sites support
 #    * Caching
 #    * Documentation
 
@@ -19,9 +18,9 @@ from rollyourown.seo.utils import NotSet, Literal
 
 from rollyourown.seo.fields import MetaDataField
 from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase, _get_seo_models
-from rollyourown.seo.meta_models import PathMetaDataManager, ModelMetaDataManager, ModelInstanceMetaDataManager, ViewMetaDataManager
-from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES
+from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase
+from rollyourown.seo.meta_models import SitePathMetaDataBase, SiteModelMetaDataBase, SiteModelInstanceMetaDataBase, SiteViewMetaDataBase
+from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
 
 
 registry = SortedDict()
@@ -62,6 +61,7 @@ class FormattedMetaData(object):
         if name in self.__metadata.elements:
             populate_from = self.__metadata.elements[name].populate_from
             if callable(populate_from):
+                # Instance methods have a 'self' under im_self
                 if getattr(populate_from, 'im_self', None):
                     return populate_from()
                 else:
@@ -192,26 +192,25 @@ class MetaDataBase(type):
         def create_new_class(md_type, base):
             # TODO: Rename this field
             new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
-            if use_sites:
-                new_md_attrs['_site'] = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-            unique_together = [base._meta.unique_together + (use_sites and ('_site',) or ())]
 
             new_md_meta = {}
             new_md_meta['verbose_name'] = '%s (%s)' % (new_class.verbose_name, md_type)
             new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class.verbose_name_plural, md_type)
-            if len(unique_together) >= 2:
-                new_md_meta['unique_together'] = unique_together
-            else:
-                # TODO: There may not be a way to enforce unique for single combinations 
-                pass
+            new_md_meta['unique_together'] = base._meta.unique_together
             new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
             return type("%s%s"%(name,"".join(md_type.split())), (base, MetaDataBaseModel), new_md_attrs.copy())
 
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        new_class.PathMetaData = create_new_class('Path', PathMetaDataBase)
-        new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataBase)
-        new_class.ModelMetaData = create_new_class('Model', ModelMetaDataBase)
-        new_class.ViewMetaData = create_new_class('View', ViewMetaDataBase)
+        if use_sites:
+            new_class.PathMetaData = create_new_class('Path', SitePathMetaDataBase)
+            new_class.ModelInstanceMetaData = create_new_class('Model Instance', SiteModelInstanceMetaDataBase)
+            new_class.ModelMetaData = create_new_class('Model', SiteModelMetaDataBase)
+            new_class.ViewMetaData = create_new_class('View', SiteViewMetaDataBase)
+        else:
+            new_class.PathMetaData = create_new_class('Path', PathMetaDataBase)
+            new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataBase)
+            new_class.ModelMetaData = create_new_class('Model', ModelMetaDataBase)
+            new_class.ViewMetaData = create_new_class('View', ViewMetaDataBase)
 
         registry[name] = new_class
 
