@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Caching
+#    * Move/rename namespace polluting attributes
 #    * Documentation
+#    * Make backends optional: Meta.backends = (path, modelinstance/model, view)
+#    * Allow cache prefix, allow turning off cache: Meta.cache_prefix
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -13,6 +15,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from django.db.models.options import get_verbose_name
+from django.core.cache import cache
+from django.utils.hashcompat import md5_constructor
+from django.utils.encoding import iri_to_uri
 
 from rollyourown.seo.utils import NotSet, Literal
 
@@ -31,8 +36,10 @@ class FormattedMetaData(object):
         Metadata for each field may be sourced from any one of the relevant instances passed.
     """
 
-    def __init__(self, metadata, instances):
+    def __init__(self, metadata, instances, path):
         self.__metadata = metadata
+        path = md5_constructor(iri_to_uri(path)).hexdigest() 
+        self.__cache_prefix = 'rollyourown.seo.%s.%s' % (self.__metadata.__class__.__name__, path)
         self.__instances_original = instances
         self.__instances_cache = []
 
@@ -72,18 +79,31 @@ class FormattedMetaData(object):
                 return self._resolve_value(populate_from)
 
     def __getattr__(self, name):
+        cache_key = '%s.%s' % (self.__cache_prefix, name)
+        value = cache.get(cache_key)
         # Look for a group called "name"
         if name in self.__metadata.groups:
-            return '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata.groups[name]).strip()
+            if value is not None:
+                return value
+            value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata.groups[name]).strip()
         # Look for an element called "name"
         elif name in self.__metadata.elements:
-            return BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(name))
+            if value is not None:
+                return BoundMetaDataField(self.__metadata.elements[name], value)
+            value = BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(name))
         else:
             raise AttributeError
 
+        cache.set(cache_key, value)
+        return value
+
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
-        return mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata.elements.items() if e.head))
+        value = cache.get(self.__cache_prefix)
+        if value is None:
+            value = mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata.elements.items() if e.head))
+            cache.set(self.__cache_prefix, value)
+        return value
 
 
 class BoundMetaDataField(object):
@@ -220,7 +240,7 @@ class MetaDataBase(type):
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_formatted_data(cls, path, context=None):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls(), cls._get_instances(path, context))
+        return FormattedMetaData(cls(), cls._get_instances(path, context), path)
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)

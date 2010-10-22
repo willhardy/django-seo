@@ -109,6 +109,8 @@ INSTALLED_APPS = [
     'django.contrib.flatpages',
 ]
 
+CACHE_BACKEND = 'dummy://'
+
 # If south is available, add it
 try:
     import south

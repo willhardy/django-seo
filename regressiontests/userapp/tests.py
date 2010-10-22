@@ -13,10 +13,33 @@
     * Templates (System tests)
     * Random (series of various uncategorised tests)
 
-    TODO: 
-        - choices argument to Tag, MetaTag etc
+    TESTS TO WRITE: 
         - valid_tags given as a string
         - seo_models = appname.modelname (ie with a dot)
+
+        + if "head" is True, tag is automatically included in the head, if "false" then no
+        + if "name" is included, that is the name of the given tag, otherwise, the field name is used
+        + if verbose_name is used, pass on to field (through field_kwargs)
+        + if the field argument given, that Django field type is used (NB default field argument incompatibility?)
+        + if editable is set to False, no Django model field is created. The value is always from populate_from
+        + if choices is given it is passed onto the field, (expanded if just a list of strings)
+
+        + groups: these elements are grouped together in the admin and can be output together in the template
+        + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
+        + models: list of models and/or apps which are available for model instance meta data
+        - verbose_name(_plural): this is passed onto Django
+        + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
+
+        + {% get_metadata %} without arguments outputs the head elements
+        + {% get_metadata as metadata %} stores the accessor as a variable
+        + {% metadata %} outputs all the head elements
+        + {% metadata.groupname %} outputs all the elements in given group
+        + {% metadata.fieldname %} outputs a single element (full tag)
+        + {% metadata.fieldname.value %} outputs only the value from a single element
+        + {% metadata.fieldname.field.name %} outputs the element's name etc
+
+        - Caching
+            - meta data lookups are avoided by caching previous rendering for certain amount of time
 
 """
 import logging
@@ -581,9 +604,10 @@ class MetaOptions(TestCase):
         + groups: these elements are grouped together in the admin and can be output together in the template
         + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
         + models: list of models and/or apps which are available for model instance meta data
-        - (FUTURE: verbose_name(_plural): this is passed onto Django)
+        - verbose_name(_plural): this is passed onto Django
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
     """
+
 
 class Templates(TestCase):
     """ Templates (System tests)
