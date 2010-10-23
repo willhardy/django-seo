@@ -50,6 +50,7 @@ class Coverage(seo.MetaData):
             'help_text': ( 'help_text1', 'help_text2', 'help_text3', 'help_text4', )
         }
         seo_models = ('userapp',)
+        seo_views = ('userapp',)
 
     class HelpText:
         help_text2 = "Updated help text2."

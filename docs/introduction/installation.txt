@@ -5,11 +5,11 @@ Quick install guide
 
 The easiest way to install Django SEO is to use use ``pip``, if you have it:
 
-    pip install django-seo
+    pip install rollyourown-seo
 
 If you don't, and you prefer the old school ``easy_install``, then the following command is for you:
 
-    easy_install django-seo
+    easy_install rollyourown-seo
 
 Not So Quick install
 --------------------

@@ -14,8 +14,11 @@
     * Random (series of various uncategorised tests)
 
     TESTS TO WRITE: 
+        - Meta.seo_views: views in list are limited to the given views/apps
+        - Meta.seo_models: models in list are limited to the given models/apps
         - valid_tags given as a string
         - seo_models = appname.modelname (ie with a dot)
+        - south compatibility
 
         + if "head" is True, tag is automatically included in the head, if "false" then no
         + if "name" is included, that is the name of the given tag, otherwise, the field name is used

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
+#    * Meta.seo_views to list views or apps that will appear in the list in the admin (like Meta.seo_models)
 #    * Move/rename namespace polluting attributes
 #    * Documentation
 #    * Make backends optional: Meta.backends = (path, modelinstance/model, view)
-#    * Allow cache prefix, allow turning off cache: Meta.cache_prefix
+#    * Make cache optional: Meta.use_cache
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
