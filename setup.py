@@ -9,7 +9,7 @@ except ImportError:
 
 from setuptools import setup, find_packages
 
-version = __import__('seo').get_version().replace(" ", "-")
+version = __import__('rollyourown.seo').get_version().replace(" ", "-")
 
 setup(
     name = "Django SEO",
