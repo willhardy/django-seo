@@ -6,7 +6,5 @@ API Reference
 .. toctree::
    :maxdepth: 1
 
-   views
-   templates
-   javascript
-    
+   definition
+   development
