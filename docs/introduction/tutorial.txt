@@ -135,10 +135,13 @@ This is just an introduction to the framework. There are a number of other featu
 
 - Variable substitution to access model instance attributes (for model-based meta data) and view context (for view-based meta data)
 - Optional support for django sites framework
-- auto-population for missing values using other fields, attributes, methods, callables or literal values
-- hidden fields, ie not editable in admin
-- grouped fields, for both admin editing and output
-- custom fields to provide customised rendering, cleaning, etc
+- Optional support for django redirect framework
+- Optional i18n (internationalisation) support
+- Optional caching
+- Auto-population for missing values using other fields, attributes, methods, callables or literal values
+- Grouped fields, for both admin editing and output
+- Hidden fields, ie not editable in admin
+- API for custom fields to provide customised rendering, cleaning, etc
 
 Complete details on these are provided in the :ref:`API reference <reference-definition>`.
 

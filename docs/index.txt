@@ -15,7 +15,7 @@ First steps
 Reference
 =========
 
-- :ref:`Meta data Definition <reference-definition>`
+- :ref:`Reference manual <reference-definition>`
 
 
 More information
