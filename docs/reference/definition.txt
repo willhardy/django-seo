@@ -11,19 +11,23 @@ The definition itself, is similar to the definition of Django models. Here is a 
 .. code-block:: python
 
     class BasicExample(seo.MetaData):
-        title       = seo.Tag()
+        title       = seo.Tag(head=True)
         keywords    = seo.MetaTag()
         description = seo.MetaTag()
         heading     = seo.Tag(name="h1")
 
 This eventually produces some models, which stores four different pieces of meta data.
 The behaviour can be customised by passing attributes, as the ``heading`` field does.
-The are three built-in meta data fields: ``seo.Tag()``, ``seo.MetaTag()`` and ``seo.Raw()``. 
+
+
+Fields
+======
+
+The are four built-in meta data fields: ``seo.Tag()``, ``seo.MetaTag()``, ``seo.KeywordTag()``  and ``seo.Raw()``. 
 The full range of attributes for each type of field is listed below.
 
-
 ``seo.Tag``
-===========
+-----------
 
 
 This is your standard, every-day HTML tag, like ``<title>`` or ``<h1>``.
@@ -35,11 +39,9 @@ This is your standard, every-day HTML tag, like ``<title>`` or ``<h1>``.
     Name of this tag. For example, if name is set to ``h1``, the following will be rendered: ``<h1>My heading</h1>``.
     By default, this is set to the attribute's name.
 
-.. attribute:: default
+.. attribute:: valid_tags
 
-    Value if data is missing.
-    For example, if default is set to ``"Welcome to my Website"``, the following will be rendered: ``<h1>Welcome to my Website</h1>``.
-    See general section on ``default`` below, for passing field and method references and callables.
+    See below for details. This defaults to a list of inline HTML elements.
 
 
 ``seo.MetaTag``
@@ -56,11 +58,19 @@ This field is useful, as it has attribute escaping built in (for eg quotations).
     For example, if name is set to ``"description"``, the following will be rendered: ``<meta name="description" content="My description" />``
     By default, this is set to the attribute's name.
 
-.. attribute:: default
 
-    Value of the meta element's ``content`` attribute, if data is missing.
-    For example, if default is set to ``"My Website"``, the following will be rendered: ``<meta name="description" content="My Website" />``.
-    See general section on ``default`` below, for passing field and method references and callables.
+``seo.KeywordTag``
+------------------
+
+This is simply a ``MetaTag`` with the default name ``keywords`` and small customisations in the admin.
+When a value is entered over multiple lines, each line is joined using a comma.
+In the future, more substantial admin customisations may be employed to help add keywords.
+
+.. class:: seo.KeywordTag(**options)
+
+.. attribute:: name
+
+    The value of the meta element's ``name`` attribute. By default, this is set to ``keywords``.
 
 
 ``seo.Raw``
@@ -73,25 +83,6 @@ By default, a Django ``TextField`` is used for this field.
 
 .. class:: seo.Raw(**options)
 
-.. attribute:: default
-
-    Raw code if data is missing.
-    The value will be rendered exactly as it is provided here (subject to ``valid_tags``).
-    See section on ``default`` below, for passing field and method references and callables.
-
-.. attribute:: valid_tags
-
-    Tags listed here are valid, all other tags will be stipped from the output.
-
-    If this is not set, and ``head`` is set to ``True``, then this will default to:
-
-    .. code-block:: python
-
-        valid_tags = "head title base link meta script".split()
-
-    otherwise, it is set to ``None``, allowing all tags.
-    Use of this requires BeautifulSoup, if it is set explicitly and BeautifulSoup is not available, an error will be raised.
-
 
 All fields:
 -----------
@@ -103,6 +94,11 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
 
     The underlying Django field, either a field class or a field instance. By default this is usually a ``CharField``.
 
+.. attribute: field_kwargs
+    
+    This dict is passed to the underlying Django field as keyword arguments, in case you would like to customise things.
+    Note that ``choices``, ``verbose_name``, ``max_length`` and ``help_text`` will also be passed to the Django field, if given.
+
 .. attribute:: head
 
     Boolean, determines if this should automatically be included in the head
@@ -112,17 +108,21 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
     Boolean, determines if this should be user editable (in the admin),
     otherwise the default value will always be used.
 
+.. attribute:: choices
+    
+    A list of values, which will be passed to the underlying Django field, making them available in the admin (usually as a drop down list).
+
 .. attribute:: verbose_name
 
-    A user friendly name for this field, which appears in the admin
+    A user friendly name for this field, which appears in the admin.
 
 .. attribute:: help_text
 
     A description of what should go in this field, for the admin.
-    If a default value is given (using the ``default`` parameter), 
+    If a default value is given (using the ``populate_from`` parameter), 
     a description of what will be included will appear automatically at the end of the ``help_text``.
 
-.. attribute:: default
+.. attribute:: populate_from
 
     A default value, when no data is available (as seen above for each of the fields).
     If you do not set this, it will be set to ``None``, which means the field will not appear.
@@ -146,11 +146,112 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
     For the description meta tag, a limit of 155 characters will be safe.
     If the field has been set to use a ``TextField`` Django field, then ``max_length`` cannot be specified.
 
+.. attribute:: valid_tags
+
+    Tags listed here are valid, all other tags will be stipped from the output.
+
+    If this is not set, and ``head`` is set to ``True``, then this will default to:
+
+    .. code-block:: python
+
+        valid_tags = "head title base link meta script".split()
+
+    otherwise, it is set to ``None``, allowing all tags.
+
+
+Meta Options
+============
+
+The meta data definition can take a number of options that are provided in a ``Meta`` class (sorry for the name), much like Django models and forms do. For example:
+
+.. code-block:: python
+
+    class BasicExample(seo.MetaData):
+        title       = seo.Tag(head=True)
+        keywords    = seo.MetaTag()
+        description = seo.MetaTag()
+        heading     = seo.Tag(name="h1")
+
+        class Meta:
+            use_sites = True
+            use_cache = True
+            groups = {'optional': ('heading',)}
+            seo_models = ('my_app', 'flatpages.FlatPage')
+            seo_views = ('my_app', )
+            backends = ('path', 'model', 'view')
+            verbose_name = "My basic example"
+            verbose_name_plural = "My basic examples"
+            
+
 .. attribute:: Meta.use_sites
 
-    Boolean, determines if all meta data should be linked to a site in the sites framework
-    (the sites field can eventually be set to null, being a fallback for all sites).
+    Boolean, determines if all meta data should be linked to a site in the sites framework.
+    Each meta data entry can then be optionally associated with a site, meaning it will only appear if the selected site is the current site.
+    If site is set to null on a meta data entry, it will be used for all sites that are missing an explicit entry.
+    By default, ``use_sites`` is ``False``.
+
+.. attribute:: Meta.use_cache
+    
+    A Boolean value, which will determine if caching is used. 
+    When caching is enabled, the values for each field on a given path will be cached.
+    You may like to turn this off if you are caching the final output in any case.
+    By default, ``use_cache`` is ``False``.
 
 .. attribute:: Meta.groups
 
-    Logical grouping of fields. This will be used in the admin, as well as in the output.
+    Logical grouping of fields. This will be used in the admin, as well as in the output. Templates can access this directly to output a number of grouped fields at once.
+
+.. attribute:: Meta.seo_models
+
+    List of apps and/or models (in the form ``app_name.model_name``) for which meta data will be attached. When an instance is created, a matching meta data instance is created.
+
+.. attribute:: Meta.seo_views
+
+    List of apps and/or view names to which meta data can be attached. When an app name is given, a ``urls.py`` will be used to limit the installed views.
+
+.. attribute:: Meta.backends
+
+    When you define meta data fields, four django models are created to attach the meta data to various things: paths, model instances, models and views. 
+    You can restrict which of these are created by setting ``backeneds`` to a list with a subset of the default value: ``("path", "modelinstance", "model", "view")``
+
+.. attribute:: Meta.verbose_name
+
+    This is used in the ``verbose_name`` for each of the Django models created.
+
+.. attribute:: Meta.verbose_name_plural
+
+    This is used in the ``verbose_name_plural`` for each of the Django models created.
+
+
+Help Text
+=========
+
+Help text for each of the fields can be provided manually, as in Django, but it can also be provided automatically and using a clean bulk-help-text syntax.
+
+Automatic help text
+-------------------
+
+Help text is sometimes automatically generated for fields that do not have an explicit ``help_text`` set:
+
+- When ``populate_from`` is set to a literal value, the help text will be set to: ``'If empty, "value" will be used.'``
+- When ``populate_from`` is set to another field, the help text will be set to: ``'If empty, other field will be used.'``
+- When ``populate_from`` is set to a callable, and that callable has an function attribute called ``short_description``, the help text will be set to: ``'If empty, short description``
+
+
+Bulk help text
+--------------
+
+You can also edit the help text for a number of fields in a convenient syntax. For example:
+
+.. code-block:: python
+
+    class BasicExample(seo.MetaData):
+        title       = seo.Tag(head=True)
+        keywords    = seo.MetaTag()
+        description = seo.MetaTag()
+        heading     = seo.Tag(name="h1")
+
+        class HelpText:
+            title  = "This will appear in the window/tab name, as well as in search results."
+            keywords = "A comma separated list of words or phrases that describe the content"
+            heading = "This will appear in the <h1> element"

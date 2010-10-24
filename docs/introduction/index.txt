@@ -9,6 +9,7 @@ Getting started
    overview
    installation
    tutorial
+   blitz-tutorial
     
 .. seealso::
 

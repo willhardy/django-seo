@@ -29,6 +29,7 @@
 
         + groups: these elements are grouped together in the admin and can be output together in the template
         + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
+        + sites conflicting sites, when two entries exist for different sites, the explicit (local) one wins. (Even better: both are used, in the appropriate order)
         + models: list of models and/or apps which are available for model instance meta data
         - verbose_name(_plural): this is passed onto Django
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
@@ -565,7 +566,7 @@ class Definition(TestCase):
 
     def test_help_text_field(self):
         self.assert_help_text('help_text6', "Some help text 6.")
-        self.assert_help_text('help_text5', "If empty, heading will be used.")
+        self.assert_help_text('help_text5', "If empty, tag two will be used.")
 
     def test_help_text_callable(self):
         self.assert_help_text('help_text3', "Some help text 3.")

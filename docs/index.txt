@@ -10,6 +10,7 @@ First steps
 - :ref:`Background <introduction-background>`
 - :ref:`Installation <introduction-install>`
 - :ref:`Tutorial <introduction-tutorial>`
+- :ref:`60 second tutorial for Django experts <introduction-blitz-tutorial>`
 
 Reference
 =========

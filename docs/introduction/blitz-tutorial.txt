@@ -1,0 +1,105 @@
+.. _introduction-blitz-tutorial:
+
+=======================================
+Django SEO Framework 60-Second-Tutorial
+=======================================
+
+This is an inordinately brief tutorial, for Django experts who don't like to waste time.
+
+Step One
+--------
+
+Add ``rollyourown.seo`` to ``INSTALLED_APPS``
+
+Step Two: Definition
+--------------------
+
+Create a file ``seo.py`` in any app, with the following simple definition:
+
+.. code-block:: python
+
+    from rollyourown import seo
+
+    class MyMetaData(seo.MetaData):
+        title       = seo.Tag(head=True, max_length=68)
+        description = seo.MetaTag(max_length=155)
+        keywords    = seo.KeywordTag()
+        heading     = seo.Tag(name="h1")
+
+Run ``syncdb``
+
+Step Three: Admin
+-----------------
+
+To edit the data in the admin, call ``register_seo_admin`` with the admin site and the meta data definition:
+
+.. code-block:: python
+
+    from rollyourown.seo.admin import register_seo_admin
+    from django.contrib import admin
+    from myapp.models import MyMetaData
+
+    register_seo_admin(admin.site, MyMetaData)
+
+
+Step Four: Adding to templates
+-----------------------------------
+
+To get the meta data in your templates, use the ``{% get_metadata %}`` template tag:
+
+.. code-block:: html
+
+    {% load seo %}
+    {% get_metadata %}
+
+The above renders like this:
+
+.. code-block:: html
+
+    <title>My Title</html>
+    <meta name="description" content="My description" />
+    <meta name="keywords" content="My, list, of, keywords" />
+
+
+Epilogue: A little more control
+-------------------------------
+
+If you save the metadata object as a variable, you'll be able to access the fields individually:
+
+.. code-block:: html
+
+    {% load seo %}
+    {% get_metadata as meta_data %}
+
+    {{ meta_data }}
+
+    {{ meta_data.heading }}
+    <h1 class="special">{{ my_meta.heading.value }}</h1>
+    <p>{{ my_meta.description.value }}</p>
+
+The following is rendered:
+
+.. code-block:: html
+
+    <title>My Title</html>
+    <meta name="description" content="My description" />
+    <meta name="keywords" content="My, list, of, keywords" />
+
+    <h1>My Heading</h1>
+    <h1 class="special">My Heading</h1>
+    <p>My description</p>
+
+
+What next?
+----------
+
+This is just an introduction to the framework. There are a number of other features including:
+
+- Variable substitution to access model instance attributes (for model-based meta data) and view context (for view-based meta data)
+- Optional support for django sites framework
+- auto-population for missing values using other fields, attributes, methods, callables or literal values
+- hidden fields, ie not editable in admin
+- grouped fields, for both admin editing and output
+- custom fields to provide customised rendering, cleaning, etc
+
+Complete details on these are provided in the :ref:`API reference <reference-definition>`.
