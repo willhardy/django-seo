@@ -262,3 +262,79 @@ You can also edit the help text for a number of fields in a convenient syntax. F
             title  = "This will appear in the window/tab name, as well as in search results."
             keywords = "A comma separated list of words or phrases that describe the content"
             heading = "This will appear in the <h1> element"
+
+
+Templates
+=========
+
+A single template tag is provided to output meta data in templates. It requires loading the ``seo`` template library, and can be called in a number of ways:
+
+.. code-block:: html
+
+    {% get_metadata %}
+
+This gets the meta data for the current path (if `RequestContext` is used) and outputs all meta data flagged to appear in the ``<head>``.
+
+.. code-block:: html
+
+    {% get_metadata for obj %}
+
+This time, the meta data is retrieved for the path belonging to the given object. The object can be a model instance (actually, anything with ``get_absolute_url``) or a path itself.
+
+.. code-block:: html
+
+    {% get_metadata as var %}
+    {{ var }}
+
+    {% get_metadata for obj as var %}
+    {{ var }}
+
+To exercise a little more flexibility, you can store the retrieved meta data as a context variable. Outputting the variable by itself will output all meta data flagged to appear in the ``<head>``.
+
+If you have multiple meta data definitions, you can choose the relevant one by providing the name of the class. Here are your alternatives for doing so:
+
+.. code-block:: html
+
+    {% get_metadata MetaDataClass %}
+    {% get_metadata MetaDataClass for obj %}
+    {% get_metadata MetaDataClass as var %}
+    {% get_metadata MetaDataClass for obj as var %}
+
+
+Meta data template objects
+--------------------------
+
+As seen above, you can store the fetched meta data as a variable. This variable can then be used to access specific meta data fields, groups and values. For example:
+
+.. code-block:: html
+
+    {{ var }}                   Full output for all metadata flagged to appear in <head>
+    {{ var.field_name }}        Full output for the given field
+    {{ var.group_name }}        Full output for all fields in the given group
+    {{ var.field_name.value }}  Output only the value for the given field
+
+
+Admin
+=====
+
+To add the models of your defined meta data to an admin site, make a single call to ``register_seo_admin``. For example:
+
+.. code-block:: python
+
+    from rollyourown.seo.admin import register_seo_admin
+    from django.contrib import admin
+    from myapp.seo import MyMetaData
+
+    register_seo_admin(admin.site, MyMetaData)
+
+An admin inline can also be created, to add meta data as an inline form on the admin page of a model instance. For example:
+
+.. code-block:: python
+
+    from rollyourown.seo.admin import get_inline
+    from django.contrib import admin
+    from myapp.seo import MyMetaData
+
+    class MyModelAdmin(admin.ModelAdmin):
+        inlines = [get_inline(MyMetaData)]
+

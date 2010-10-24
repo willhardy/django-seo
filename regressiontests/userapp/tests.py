@@ -15,6 +15,7 @@
 
     TESTS TO WRITE: 
         - auto_redirect: when a path is changed (in a model instance MD or in a path MD), add the old path to django's redirect app
+        - {% get_metadata for object as var %} template
         - Meta.seo_views: views in list are limited to the given views/apps
         - Meta.seo_models: models in list are limited to the given models/apps
         - valid_tags given as a string
