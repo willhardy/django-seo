@@ -24,6 +24,7 @@ VALID_INLINE_TAGS = (
 class MetaDataField(object):
     creation_counter = 0
 
+    # TODO: verbose_name, max_length
     def __init__(self, name, head, editable, populate_from, valid_tags, choices, help_text, field, field_kwargs):
         self.name = name
         self.head = head
@@ -31,6 +32,8 @@ class MetaDataField(object):
         self.populate_from = populate_from
         self.help_text = help_text
         self.field = field or models.CharField
+        if field_kwargs is None: field_kwargs = {}
+        self.field_kwargs = field_kwargs
 
         if choices and isinstance(choices[0], basestring):
             choices = [(c, c) for c in choices]
@@ -43,8 +46,6 @@ class MetaDataField(object):
             valid_tags = set(valid_tags)
         self.valid_tags = valid_tags
 
-        if field_kwargs is None: field_kwargs = {}
-        self.field_kwargs = field_kwargs
 
         # Track creation order for field ordering
         self.creation_counter = MetaDataField.creation_counter
@@ -156,6 +157,7 @@ class KeywordTag(MetaTag):
         return value.replace('"', '&#34;').replace("\n", ", ").strip()
 
 
+# TODO: if max_length is given, use a CharField and pass it through
 class Raw(MetaDataField):
     def __init__(self, head=True, editable=True, populate_from=NotSet, 
                     verbose_name=None, valid_tags=None, choices=None, field=models.TextField,
