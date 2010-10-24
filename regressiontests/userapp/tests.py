@@ -14,6 +14,7 @@
     * Random (series of various uncategorised tests)
 
     TESTS TO WRITE: 
+        - use_i18n: when set, add a _language field to all models to select by the given language
         - auto_redirect: when a path is changed (in a model instance MD or in a path MD), add the old path to django's redirect app
         - {% get_metadata for object as var %} template
         - Meta.seo_views: views in list are limited to the given views/apps

@@ -175,6 +175,7 @@ The meta data definition can take a number of options that are provided in a ``M
         class Meta:
             use_sites = True
             use_cache = True
+            use_i18n = True
             auto_redirect = True
             groups = {'optional': ('heading',)}
             seo_models = ('my_app', 'flatpages.FlatPage')
@@ -193,10 +194,14 @@ The meta data definition can take a number of options that are provided in a ``M
 
 .. attribute:: Meta.use_cache
     
-    A Boolean value, which will determine if caching is used. 
-    When caching is enabled, the values for each field on a given path will be cached.
+    If this is ``True`` caching is enabled, meaning that each of the final values for each field on a given path will be cached.
     You may like to turn this off if you are caching the final output in any case.
     By default, ``use_cache`` is ``False``.
+
+.. attribute:: Meta.use_i18n
+
+    If this is ``True``, an extra field for language selection is provided. Meta data will only be returned for the given language.
+    By default, ``use_i18n`` is ``False``.
 
 .. attribute:: Meta.auto_redirect
     
