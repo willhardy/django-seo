@@ -61,3 +61,22 @@ class WithSites(seo.MetaData):
 
     class Meta:
         use_sites = True
+
+class WithI18n(seo.MetaData):
+    title        = seo.Tag()
+
+    class Meta:
+        use_i18n = True
+
+class WithRedirect(seo.MetaData):
+    title        = seo.Tag()
+
+    class Meta:
+        use_redirect = True
+
+class WithRedirectSites(seo.MetaData):
+    title        = seo.Tag()
+
+    class Meta:
+        use_sites = True
+        use_redirect = True

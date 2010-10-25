@@ -280,8 +280,13 @@ class MetaData(object):
 def get_meta_data(path, name=None, context=None):
     # Find registered MetaData object
     if name is not None:
-        metadata = registry[name]
+        try:
+            metadata = registry[name]
+        except KeyError:
+            raise Exception("Meta data definition with name \"%s\" does not exist." % name)
     else:
+        if len(registry) != 1:
+            print registry.keys()
         assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
         metadata = registry.values()[0]
     return metadata._get_formatted_data(path, context)

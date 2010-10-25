@@ -176,7 +176,7 @@ The meta data definition can take a number of options that are provided in a ``M
             use_sites = True
             use_cache = True
             use_i18n = True
-            auto_redirect = True
+            use_redirect = True
             groups = {'optional': ('heading',)}
             seo_models = ('my_app', 'flatpages.FlatPage')
             seo_views = ('my_app', )
@@ -203,11 +203,11 @@ The meta data definition can take a number of options that are provided in a ``M
     If this is ``True``, an extra field for language selection is provided. Meta data will only be returned for the given language.
     By default, ``use_i18n`` is ``False``.
 
-.. attribute:: Meta.auto_redirect
+.. attribute:: Meta.use_redirect
     
     If this is set to ``True``, automatically add a ``Redirect`` from the ``django.contrib.redirects`` app when a path changes for a given meta data entry.
     In practice, this applies to path-based and model-instance-based meta data
-    By default this is ``False``.
+    By default, ``use_redirect`` is ``False``.
 
 .. attribute:: Meta.groups
 

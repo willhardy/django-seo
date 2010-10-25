@@ -14,14 +14,11 @@
     * Random (series of various uncategorised tests)
 
     TESTS TO WRITE: 
-        - use_i18n: when set, add a _language field to all models to select by the given language
-        - auto_redirect: when a path is changed (in a model instance MD or in a path MD), add the old path to django's redirect app
-        - {% get_metadata for object as var %} template
         - Meta.seo_views: views in list are limited to the given views/apps
         - Meta.seo_models: models in list are limited to the given models/apps
         - valid_tags given as a string
-        - seo_models = appname.modelname (ie with a dot)
-        - south compatibility
+        - Meta.seo_models = appname.modelname (ie with a dot)
+        - south compatibility (changing a definition)
 
         + if "head" is True, tag is automatically included in the head, if "false" then no
         + if "name" is included, that is the name of the given tag, otherwise, the field name is used
@@ -37,16 +34,9 @@
         - verbose_name(_plural): this is passed onto Django
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
 
-        + {% get_metadata %} without arguments outputs the head elements
-        + {% get_metadata as metadata %} stores the accessor as a variable
-        + {% metadata %} outputs all the head elements
-        + {% metadata.groupname %} outputs all the elements in given group
-        + {% metadata.fieldname %} outputs a single element (full tag)
-        + {% metadata.fieldname.value %} outputs only the value from a single element
-        + {% metadata.fieldname.field.name %} outputs the element's name etc
-
         - Caching
             - meta data lookups are avoided by caching previous rendering for certain amount of time
+            - caching with respect to language and site?
 
 """
 import logging
@@ -56,12 +46,16 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
+from django.contrib.redirects.models import Redirect
 from django.conf import settings
 from django.db import IntegrityError
+from django.core.handlers.wsgi import WSGIRequest
+from django.template import Template, RequestContext, TemplateSyntaxError
 
 from rollyourown.seo import get_meta_data as seo_get_meta_data
+from rollyourown.seo.base import registry
 from userapp.models import Page, Product, Category, NoPath
-from userapp.seo import Coverage, WithSites
+from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites
 
 
 def get_meta_data(path):
@@ -168,6 +162,65 @@ class DataSelection(TestCase):
         path_meta_data._site_id = site.id + 1
         path_meta_data.save()
         self.assertEqual(seo_get_meta_data(path, name="WithSites").title.value, None)
+
+    def test_i18n(self):
+        """ Tests the i18n support, allowing a language to be associated with meta data entries.
+        """
+        path = "/abc/"
+        language = 'de'
+        path_meta_data = WithI18n.PathMetaData.objects.create(_language='de', title="German Path title", _path=path)
+        self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, 'German Path title')
+        # Meta data with site=null should work
+        path_meta_data._language = None
+        path_meta_data.save()
+        self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, 'German Path title')
+        # Meta data with an explicitly wrong site should not work
+        path_meta_data._language = "en"
+        path_meta_data.save()
+        self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, None)
+
+    def test_redirect(self):
+        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
+        """
+        old_path = "/abc/"
+        new_path = "/new-path/"
+
+        # Check that the redirect doesn't already exist
+        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 0)
+
+        path_meta_data = WithRedirect.PathMetaData.objects.create(title="A Path title", _path=old_path)
+        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, 'A Path title')
+
+        # Rename the path
+        path_meta_data._path = new_path
+        path_meta_data.save()
+        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, None)
+        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirect").title.value, 'A Path title')
+
+        # Check that a redirect was created
+        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 1)
+
+    def test_redirect_with_sites(self):
+        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
+        """
+        old_path = "/abc/"
+        new_path = "/new-path/"
+        site = Site.objects.get_current()
+
+        # Check that the redirect doesn't already exist
+        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 0)
+
+        path_meta_data = WithRedirectSites.PathMetaData.objects.create(title="A Path title", _path=old_path, _site=site)
+        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, 'A Path title')
+
+        # Rename the path
+        path_meta_data._path = new_path
+        path_meta_data.save()
+        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, None)
+        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirectSites").title.value, 'A Path title')
+
+        # Check that a redirect was created
+        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 1)
 
     def test_missing_value(self):
         """ Checks that nothing breaks when no value could be found. 
@@ -610,7 +663,11 @@ class MetaOptions(TestCase):
     """ Meta options (System tests)
         + groups: these elements are grouped together in the admin and can be output together in the template
         + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
-        + models: list of models and/or apps which are available for model instance meta data
+        + use_i18n:
+        + use_redirect:
+        + use_cache:
+        + seo_models: list of models and/or apps which are available for model instance meta data
+        + seo_views: list of models and/or apps which are available for model instance meta data
         - verbose_name(_plural): this is passed onto Django
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
     """
@@ -618,14 +675,113 @@ class MetaOptions(TestCase):
 
 class Templates(TestCase):
     """ Templates (System tests)
-        + {% get_metadata %} without arguments outputs the head elements
-        + {% get_metadata as metadata %} stores the accessor as a variable
-        + {% metadata %} outputs all the head elements
-        + {% metadata.groupname %} outputs all the elements in given group
-        + {% metadata.fieldname %} outputs a single element (full tag)
-        + {% metadata.fieldname.value %} outputs only the value from a single element
-        + {% metadata.fieldname.field.name %} outputs the element's name etc
+
+        # Tests for future features (if there is demand)
+        - {% get_metadata in language %} gets for the given language
+        - {% get_metadata on site %} gets for the given site
+        - {% get_metadata ClassName on site in language for path as var %} All at once!
     """
+    def setUp(self):
+        self.path = "/abc/"
+        Coverage.PathMetaData.objects.create(_path=self.path, title="A Title", description="A Description", raw1="Some raw text")
+        self.meta_data = get_meta_data(path=self.path)
+        self.context = {}
+
+    def test_basic(self):
+        self.deregister_alternatives()
+        self.compilesTo("{% get_metadata %}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata as var %}{{ var }}", unicode(self.meta_data))
+
+    def test_for_path(self):
+        self.deregister_alternatives()
+        path = self.path
+        self.path = "/another-path/"
+        other_path = "/a-third-path/"
+        self.compilesTo("{%% get_metadata for \"%s\" %%}" % other_path, "")
+        self.compilesTo("{%% get_metadata for \"%s\" as var %%}{{ var }}" % other_path, "")
+
+        self.compilesTo("{%% get_metadata for \"%s\" %%}" % path, unicode(self.meta_data))
+        self.compilesTo("{%% get_metadata for \"%s\" as var %%}{{ var }}" % path, unicode(self.meta_data))
+
+    def test_for_obj(self):
+        self.deregister_alternatives()
+        path = self.path
+        self.path = "/another-path/"
+        self.context = {'obj': {'get_absolute_url': "/a-third-path/"}}
+        self.compilesTo("{% get_metadata for obj %}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.meta_data))
+
+        self.context = {'obj': {'get_absolute_url': path}}
+        self.compilesTo("{% get_metadata for obj %}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.meta_data))
+
+    def test_wrong_class_name(self):
+        self.compilesTo("{% get_metadata WithSites %}", "")
+        self.compilesTo("{% get_metadata WithSites as var %}{{ var }}", "")
+
+    def test_bad_class_name(self):
+        try:
+            self.compilesTo("{% get_metadata ThisDoesNotExist %}", "This should have raised an exception")
+        except TemplateSyntaxError:
+            pass
+        try:
+            self.compilesTo("{% get_metadata ThisDoesNotExist as var %}{{ var }}", "This should have raised an exception")
+        except TemplateSyntaxError:
+            pass
+
+    def test_class_name(self):
+        self.compilesTo("{% get_metadata Coverage %}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata Coverage as var %}{{ var }}", unicode(self.meta_data))
+        path = self.path
+        self.context = {'obj': {'get_absolute_url': path}}
+        self.path = "/another-path/"
+        self.compilesTo("{%% get_metadata Coverage for \"%s\" %%}" % path, unicode(self.meta_data))
+        self.compilesTo("{%% get_metadata Coverage for \"%s\" as var %%}{{ var }}"% path, unicode(self.meta_data))
+        self.compilesTo("{%% get_metadata Coverage for obj %%}", unicode(self.meta_data))
+        self.compilesTo("{%% get_metadata Coverage for obj as var %%}{{ var }}", unicode(self.meta_data))
+
+    def test_variable_group(self):
+        self.deregister_alternatives()
+        self.compilesTo("{% get_metadata as var %}{{ var.advanced }}", unicode(self.meta_data.raw1))
+
+    def test_variable_field(self):
+        self.deregister_alternatives()
+        self.compilesTo("{% get_metadata as var %}{{ var.raw1 }}", unicode(self.meta_data.raw1))
+
+    def test_variable_field_value(self):
+        self.deregister_alternatives()
+        self.compilesTo("{% get_metadata as var %}{{ var.raw1.value }}", "Some raw text")
+
+    def test_variable_field_name(self):
+        self.deregister_alternatives()
+        self.compilesTo("{% get_metadata as var %}{{ var.raw1.field.name }}", "raw1")
+
+    def compilesTo(self, input, expected_output):
+        """ Asserts that the given template string compiles to the given output. 
+        """
+        input = '{% load seo %}' + input
+        environ = { 'PATH_INFO': self.path, 'REQUEST_METHOD': 'GET' } 
+        request = WSGIRequest(environ) 
+        context= RequestContext(request)
+        context.update(self.context)
+        self.assertEqual(Template(input).render(context), expected_output)
+
+    def deregister_alternatives(self):
+        """ Deregister any alternative meta data classes for the sake of testing. 
+            This emulates the situation where there is only one meta data definition.
+        """
+        for key in registry.keys():
+            del registry[key]
+        registry['Coverage'] = Coverage
+
+    def tearDown(self):
+        # Reregister any missing classes
+        if len(registry) < 5:
+            registry['WithSites'] = WithSites
+            registry['WithI18n'] = WithI18n
+            registry['WithRedirect'] = WithRedirect
+            registry['WithRedirectSites'] = WithRedirectSites
+
 
 class Random(TestCase):
     """

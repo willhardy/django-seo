@@ -99,6 +99,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 
 INSTALLED_APPS = [
     'django.contrib.sites',
+    'django.contrib.redirects',
     'rollyourown.seo',
     'userapp',
     'django.contrib.auth',

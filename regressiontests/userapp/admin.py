@@ -15,6 +15,3 @@ class WithMetaDataAdmin(admin.ModelAdmin):
 
 admin.site.register(Product, WithMetaDataAdmin)
 admin.site.register(Page, WithMetaDataAdmin)
-
-from rollyourown.seo.default import DefaultMetaData
-register_seo_admin(admin.site, DefaultMetaData)
