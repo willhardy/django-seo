@@ -167,48 +167,50 @@ class DataSelection(TestCase):
         path_meta_data.save()
         self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, None)
 
-    def test_redirect(self):
-        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
-        """
-        old_path = "/abc/"
-        new_path = "/new-path/"
-
-        # Check that the redirect doesn't already exist
-        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 0)
-
-        path_meta_data = WithRedirect.PathMetaData.objects.create(title="A Path title", _path=old_path)
-        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, 'A Path title')
-
-        # Rename the path
-        path_meta_data._path = new_path
-        path_meta_data.save()
-        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, None)
-        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirect").title.value, 'A Path title')
-
-        # Check that a redirect was created
-        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 1)
-
-    def test_redirect_with_sites(self):
-        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
-        """
-        old_path = "/abc/"
-        new_path = "/new-path/"
-        site = Site.objects.get_current()
-
-        # Check that the redirect doesn't already exist
-        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 0)
-
-        path_meta_data = WithRedirectSites.PathMetaData.objects.create(title="A Path title", _path=old_path, _site=site)
-        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, 'A Path title')
-
-        # Rename the path
-        path_meta_data._path = new_path
-        path_meta_data.save()
-        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, None)
-        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirectSites").title.value, 'A Path title')
-
-        # Check that a redirect was created
-        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 1)
+#    # FUTURE feature
+#
+#    def test_redirect(self):
+#        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
+#        """
+#        old_path = "/abc/"
+#        new_path = "/new-path/"
+#
+#        # Check that the redirect doesn't already exist
+#        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 0)
+#
+#        path_meta_data = WithRedirect.PathMetaData.objects.create(title="A Path title", _path=old_path)
+#        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, 'A Path title')
+#
+#        # Rename the path
+#        path_meta_data._path = new_path
+#        path_meta_data.save()
+#        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirect").title.value, None)
+#        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirect").title.value, 'A Path title')
+#
+#        # Check that a redirect was created
+#        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 1)
+#
+#    def test_redirect_with_sites(self):
+#        """ Tests django.contrib.redirect support, automatically adding redirects for new paths.
+#        """
+#        old_path = "/abc/"
+#        new_path = "/new-path/"
+#        site = Site.objects.get_current()
+#
+#        # Check that the redirect doesn't already exist
+#        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 0)
+#
+#        path_meta_data = WithRedirectSites.PathMetaData.objects.create(title="A Path title", _path=old_path, _site=site)
+#        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, 'A Path title')
+#
+#        # Rename the path
+#        path_meta_data._path = new_path
+#        path_meta_data.save()
+#        self.assertEqual(seo_get_meta_data(old_path, name="WithRedirectSites").title.value, None)
+#        self.assertEqual(seo_get_meta_data(new_path, name="WithRedirectSites").title.value, 'A Path title')
+#
+#        # Check that a redirect was created
+#        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 1)
 
     def test_missing_value(self):
         """ Checks that nothing breaks when no value could be found. 

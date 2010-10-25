@@ -135,7 +135,6 @@ This is just an introduction to the framework. There are a number of other featu
 
 - Variable substitution to access model instance attributes (for model-based meta data) and view context (for view-based meta data)
 - Optional support for django sites framework
-- Optional support for django redirect framework
 - Optional i18n (internationalisation) support
 - Optional caching
 - Auto-population for missing values using other fields, attributes, methods, callables or literal values
