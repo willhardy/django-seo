@@ -33,5 +33,4 @@ Here is an example of a definition::
 As you can see it is very flexible, but there is much more than this simple example.
 
 The current version you are looking at is a complete rewrite to make things a whole lot more flexible. 
-It is **ABSOLUTELY NOT STABLE**, and will be released as a stable version "1.0" after it has been sufficiently tested and documented.
 
