@@ -15,17 +15,14 @@ from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.utils.safestring import mark_safe
-from django.db.models.options import get_verbose_name
 from django.core.cache import cache
 from django.utils.hashcompat import md5_constructor
 from django.utils.encoding import iri_to_uri
 
 from rollyourown.seo.utils import NotSet, Literal
-
-from rollyourown.seo.fields import MetaDataField
-from rollyourown.seo.fields import Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathMetaDataBase, ModelMetaDataBase, ModelInstanceMetaDataBase, ViewMetaDataBase
-from rollyourown.seo.meta_models import SitePathMetaDataBase, SiteModelMetaDataBase, SiteModelInstanceMetaDataBase, SiteViewMetaDataBase
+from rollyourown.seo.options import Options
+from rollyourown.seo.fields import MetaDataField, Tag, MetaTag, KeywordTag, Raw
+from rollyourown.seo.meta_models import PathMetaDataPlugin, ViewMetaDataPlugin, ModelInstanceMetaDataPlugin, ModelMetaDataPlugin
 from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
 
 
@@ -83,10 +80,10 @@ class FormattedMetaData(object):
         cache_key = '%s.%s' % (self.__cache_prefix, name)
         value = cache.get(cache_key)
         # Look for a group called "name"
-        if name in self.__metadata.groups:
+        if name in self.__metadata._meta.groups:
             if value is not None:
                 return value
-            value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata.groups[name]).strip()
+            value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
         # Look for an element called "name"
         elif name in self.__metadata.elements:
             if value is not None:
@@ -140,14 +137,11 @@ class MetaDataBase(type):
             Meta = Meta.__dict__.copy()
 
         # Remove our options from Meta, so Django won't complain
-        groups = Meta.pop('groups', {})
-        use_sites = Meta.pop('use_sites', False)
-        seo_models = Meta.pop('seo_models', [])
         help_text = attrs.pop('HelpText', {})
-        verbose_name = Meta.pop('verbose_name', None)
-        verbose_name_plural = Meta.pop('verbose_name_plural', None)
         if help_text:
             help_text = help_text.__dict__.copy()
+
+        options = Options(Meta)
 
         # Collect and sort our elements
         elements = [(key, attrs.pop(key)) for key, obj in attrs.items() 
@@ -159,7 +153,7 @@ class MetaDataBase(type):
         # Validation:
         # TODO: Write a test framework for seo.MetaData validation
         # Check that no group names clash with element names
-        for key,members in groups.items():
+        for key,members in options.groups.items():
             assert key not in elements, "Group name '%s' clashes with field name" % key
             for member in members:
                 assert member in elements, "Group member '%s' is not a valid field" % member
@@ -173,15 +167,17 @@ class MetaDataBase(type):
         new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
 
         # Some useful attributes
-        # TODO: Move these polluting names out of the way (subclasses will want to use their own attributes)
-        new_class.seo_models = seo_models
-        new_class.elements = elements
-        new_class.groups = groups
-        new_class.use_sites = use_sites
-        new_class.verbose_name = verbose_name or get_verbose_name(name)
-        new_class.verbose_name_plural = verbose_name_plural or new_class.verbose_name + 's'
+        options.update_from_name(name)
+        new_class._meta = options
 
-        # TODO: Reorganise? should this happen somewhere else?
+        # TODO: Remove these, they are now acessible under _meta
+        new_class.seo_models = options.seo_models
+        new_class.elements = elements
+        new_class.groups = options.groups
+        new_class.use_sites = options.use_sites
+        new_class.verbose_name = options.verbose_name
+        new_class.verbose_name_plural = options.verbose_name_plural
+
         for key, obj in elements.items():
             obj.contribute_to_class(new_class, key)
 
@@ -215,23 +211,17 @@ class MetaDataBase(type):
             new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
 
             new_md_meta = {}
-            new_md_meta['verbose_name'] = '%s (%s)' % (new_class.verbose_name, md_type)
-            new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class.verbose_name_plural, md_type)
+            new_md_meta['verbose_name'] = '%s (%s)' % (new_class._meta.verbose_name, md_type)
+            new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class._meta.verbose_name_plural, md_type)
             new_md_meta['unique_together'] = base._meta.unique_together
             new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
             return type("%s%s"%(name,"".join(md_type.split())), (base, MetaDataBaseModel), new_md_attrs.copy())
 
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        if use_sites:
-            new_class.PathMetaData = create_new_class('Path', SitePathMetaDataBase)
-            new_class.ModelInstanceMetaData = create_new_class('Model Instance', SiteModelInstanceMetaDataBase)
-            new_class.ModelMetaData = create_new_class('Model', SiteModelMetaDataBase)
-            new_class.ViewMetaData = create_new_class('View', SiteViewMetaDataBase)
-        else:
-            new_class.PathMetaData = create_new_class('Path', PathMetaDataBase)
-            new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataBase)
-            new_class.ModelMetaData = create_new_class('Model', ModelMetaDataBase)
-            new_class.ViewMetaData = create_new_class('View', ViewMetaDataBase)
+        new_class.PathMetaData = create_new_class('Path', PathMetaDataPlugin().get_model(options))
+        new_class.ViewMetaData = create_new_class('View', ViewMetaDataPlugin().get_model(options))
+        new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataPlugin().get_model(options))
+        new_class.ModelMetaData = create_new_class('Model', ModelMetaDataPlugin().get_model(options))
 
         registry[name] = new_class
 
@@ -257,7 +247,7 @@ class MetaDataBase(type):
         try:
             i = cls.ModelInstanceMetaData.objects.get_from_path(path, site, language)
             yield i
-            i2 = cls.ModelMetaData.objects.get_from_content_type(i._content_type, site, language)
+            i2 = cls.ModelMetaData.objects.get_from_path(i._content_type, site, language)
             i2._set_context(i._content_object)
             yield i2
         except (cls.ModelInstanceMetaData.DoesNotExist, cls.ModelMetaData.DoesNotExist):
@@ -287,7 +277,7 @@ def get_meta_data(path, name=None, context=None, site=None, language=None):
     else:
         assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
         metadata = registry.values()[0]
-    return metadata._get_formatted_data(path, context)
+    return metadata._get_formatted_data(path, context, site, language)
 
 
 

@@ -16,46 +16,6 @@ RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id',
                         '_content_object', '_view', '_site', 'objects', 
                         '_resolve_value', '_set_context', 'id', 'pk' )
 
-# Also Meta, but this is difficult to check
-class MetaDataManager(models.Manager):
-    def on_current_site(self, site=None):
-        return self.get_query_set()
-
-class PathMetaDataManager(MetaDataManager):
-    def get_from_path(self, path, site=None, language=None):
-        return self.on_current_site(site).get(_path=path)
-
-class ModelMetaDataManager(MetaDataManager):
-    def get_from_content_type(self, content_type, site=None, language=None):
-        return self.on_current_site(site).get(_content_type=content_type)
-
-class ModelInstanceMetaDataManager(MetaDataManager):
-    def get_from_path(self, path, site=None, language=None):
-        return self.on_current_site(site).get(_path=path)
-
-class ViewMetaDataManager(MetaDataManager):
-    def get_from_path(self, path, site=None, language=None):
-        view_name = resolve_to_name(path)
-        if view_name is not None:
-            return self.on_current_site(site).get(_view=view_name)
-        raise self.model.DoesNotExist()
-
-# Site versions of the above managers
-class SiteMetaDataManager(models.Manager):
-    def on_current_site(self, site=None):
-        if isinstance(site, Site):
-            site_id = site.id
-        elif site is not None:
-            site_id = site and Site.objects.get(domain=site).id
-        else:
-            site_id = settings.SITE_ID
-        # Exclude entries for other sites
-        where = ['_site_id IS NULL OR _site_id=%s']
-        return self.get_query_set().extra(where=where, params=[site_id])
-class SitePathMetaDataManager(SiteMetaDataManager, PathMetaDataManager): pass
-class SiteModelInstanceMetaDataManager(SiteMetaDataManager, ModelInstanceMetaDataManager): pass
-class SiteModelMetaDataManager(SiteMetaDataManager, ModelMetaDataManager): pass
-class SiteViewMetaDataManager(SiteMetaDataManager, ViewMetaDataManager): pass
 
 class MetaDataBaseModel(models.Model):
 
@@ -108,151 +68,184 @@ class MetaDataBaseModel(models.Model):
             return value
 
 
+class BaseManager(models.Manager):
+    def on_current_site(self, site=None):
+        if isinstance(site, Site):
+            site_id = site.id
+        elif site is not None:
+            site_id = site and Site.objects.get(domain=site).id
+        else:
+            site_id = settings.SITE_ID
+        # Exclude entries for other sites
+        where = ['_site_id IS NULL OR _site_id=%s']
+        return self.get_query_set().extra(where=where, params=[site_id])
 
-# 1. Path-based model
-class PathMetaDataBase(MetaDataBaseModel):
-    _path    = models.CharField(_('path'), max_length=511, unique=True)
-    objects = PathMetaDataManager()
-
-    def __unicode__(self):
-        return self._path
-
-    class Meta:
-        abstract = True
-
-
-# 2. Model-based model
-class ModelMetaDataBase(MetaDataBaseModel):
-    _content_type  = models.ForeignKey(ContentType, unique=True)
-    objects        = ModelMetaDataManager()
-
-    def __unicode__(self):
-        return unicode(self._content_type)
-
-    def _set_context(self, instance):
-        """ Use the given model instance as context for rendering 
-            any substitutions. 
-        """
-        self.__instance = instance
-
-    def _resolve_value(self, name):
-        value = super(ModelMetaDataBase, self)._resolve_value(name)
-        return _resolve(value, self.__instance)
-
-    class Meta:
-        abstract = True
-
-# 3. Model-instance-based model
-class ModelInstanceMetaDataBase(MetaDataBaseModel):
-    _path           = models.CharField(_('path'), max_length=511, unique=True)
-    _content_type   = models.ForeignKey(ContentType, editable=False)
-    _object_id      = models.PositiveIntegerField(editable=False)
-    _content_object = generic.GenericForeignKey('_content_type', '_object_id')
-    objects        = ModelInstanceMetaDataManager()
-
-    def __unicode__(self):
-        return self._path
-
-    class Meta:
-        unique_together = ('_content_type', '_object_id')
-        abstract = True
-
-# 4. View-based model
-class ViewMetaDataBase(MetaDataBaseModel):
-    _view = SystemViewField(unique=True)
-    objects = ViewMetaDataManager()
-
-    def __unicode__(self):
-        return self._view
-
-    class Meta:
-        abstract = True
-
-    def _set_context(self, context):
-        """ Use the context when rendering any substitutions.  """
-        self.__context = context
-
-    def _resolve_value(self, name):
-        value = super(ViewMetaDataBase, self)._resolve_value(name)
-        return _resolve(value, context=self.__context)
+    def for_site_and_language(self, site=None, language=None):
+        queryset = self.on_current_site(site)
+        if language:
+            queryset = queryset.filter(_language=language)
+        return queryset
 
 
-# And now the same models, but with django.contrib.sites support.
-# This isn't ideal, but is a way of side stepping some problems with 
-# inheritence and uniqueness
+class MetaDataPlugin(object):
+    name = None
+    unique_together = None
 
-# 1. Path-based model with sites support
-class SitePathMetaDataBase(MetaDataBaseModel):
-    _site   = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-    _path   = models.CharField(_('path'), max_length=511)
-    objects = SitePathMetaDataManager()
+    def get_unique_together(self, options):
+        ut = []
+        for ut_set in self.unique_together:
+            ut_set = [a for a in ut_set]
+            if options.use_sites:
+                ut_set.append('_site')
+            if options.use_i18n:
+                ut_set.append('_language')
+            ut.append(tuple(ut_set))
+        return tuple(ut)
 
-    def __unicode__(self):
-        return '%s%s' % (self._site.domain, self._path)
+    def get_manager(self, options):
+        _get_from_path = self.get_from_path
 
-    class Meta:
-        abstract = True
-        unique_together = (('_path', '_site'),)
+        class _Manager(BaseManager):
+            def get_from_path(self, path, site=None, language=None):
+                queryset = self.for_site_and_language(site, language)
+                return _get_from_path(queryset, path)
 
-# 2. Model-based model with sites support
-class SiteModelMetaDataBase(MetaDataBaseModel):
-    _site           = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-    _content_type   = models.ForeignKey(ContentType)
-    objects         = SiteModelMetaDataManager()
+            if not options.use_sites:
+                def for_site_and_language(self, site=None, language=None):
+                    queryset = self.get_query_set()
+                    if language:
+                        queryset = queryset.filter(_language=language)
+                    return queryset
+        return _Manager
 
-    def __unicode__(self):
-        return unicode(self._content_type)
 
-    def _set_context(self, instance):
-        """ Use the given model instance as context for rendering 
-            any substitutions. 
-        """
-        self.__instance = instance
+class PathMetaDataPlugin(MetaDataPlugin):
 
-    def _resolve_value(self, name):
-        value = super(ModelMetaDataBase, self)._resolve_value(name)
-        return _resolve(value, self.__instance)
+    unique_together = (("_path",),)
 
-    class Meta:
-        abstract = True
-        unique_together = (('_content_type', '_site'),)
+    def get_from_path(self, queryset, path):
+        return queryset.get(_path=path)
 
-# 3. Model-instance-based model with sites support
-class SiteModelInstanceMetaDataBase(MetaDataBaseModel):
-    _site           = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-    _path           = models.CharField(_('path'), max_length=511)
-    _content_type   = models.ForeignKey(ContentType, editable=False)
-    _object_id      = models.PositiveIntegerField(editable=False)
-    _content_object = generic.GenericForeignKey('_content_type', '_object_id')
-    objects         = SiteModelInstanceMetaDataManager()
+    def get_model(self, options):
+        class PathMetaDataBase(MetaDataBaseModel):
+            _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
+            if options.use_sites:
+                _site = models.ForeignKey(Site, null=True, blank=True)
+            if options.use_i18n:
+                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+            objects = self.get_manager(options)()
 
-    def __unicode__(self):
-        return self._path
+            def __unicode__(self):
+                return self._path
+    
+            class Meta:
+                abstract = True
+                unique_together = self.get_unique_together(options)
 
-    class Meta:
-        unique_together = (('_content_type', '_object_id', '_site'), ('_path', '_site'))
-        abstract = True
+        return PathMetaDataBase
 
-# 4. View-based model with sites support
-class SiteViewMetaDataBase(MetaDataBaseModel):
-    _site   = models.ForeignKey(Site, default=settings.SITE_ID, null=True, blank=True)
-    _view   = SystemViewField()
-    objects = SiteViewMetaDataManager()
 
-    def __unicode__(self):
-        return self._view
+class ViewMetaDataPlugin(MetaDataPlugin):
 
-    class Meta:
-        abstract = True
-        unique_together = (('_view', '_site'),)
+    unique_together = (("_view",),)
 
-    def _set_context(self, context):
-        """ Use the context when rendering any substitutions.  """
-        self.__context = context
+    def get_from_path(self, queryset, path):
+        view_name = resolve_to_name(path)
+        if view_name is not None:
+            return queryset.get(_view=view_name)
+        raise queryset.model.DoesNotExist()
 
-    def _resolve_value(self, name):
-        value = super(ViewMetaDataBase, self)._resolve_value(name)
-        return _resolve(value, context=self.__context)
+    def get_model(self, options):
+        class ViewMetaDataBase(MetaDataBaseModel):
+            _view = SystemViewField(unique=not (options.use_sites or options.use_i18n))
+            if options.use_sites:
+                _site = models.ForeignKey(Site, null=True, blank=True)
+            if options.use_i18n:
+                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+            objects = self.get_manager(options)()
+
+            def _set_context(self, context):
+                """ Use the context when rendering any substitutions.  """
+                self.__context = context
+        
+            def _resolve_value(self, name):
+                value = super(ViewMetaDataBase, self)._resolve_value(name)
+                return _resolve(value, context=self.__context)
+
+            def __unicode__(self):
+                return self._view
+    
+            class Meta:
+                abstract = True
+                unique_together = self.get_unique_together(options)
+
+        return ViewMetaDataBase
+
+
+class ModelInstanceMetaDataPlugin(MetaDataPlugin):
+
+    name = "modelinstance"
+    unique_together = (("_path",), ("_content_type", "_object_id"))
+
+    def get_from_path(self, queryset, path):
+        return queryset.get(_path=path)
+
+    def get_model(self, options):
+        class ModelInstanceMetaDataBase(MetaDataBaseModel):
+            _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
+            _content_type = models.ForeignKey(ContentType, editable=False)
+            _object_id = models.PositiveIntegerField(editable=False)
+            _content_object = generic.GenericForeignKey('_content_type', '_object_id')
+            if options.use_sites:
+                _site = models.ForeignKey(Site, null=True, blank=True)
+            if options.use_i18n:
+                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+            objects = self.get_manager(options)()
+        
+            def __unicode__(self):
+                return self._path
+
+            class Meta:
+                unique_together = self.get_unique_together(options)
+                abstract = True
+
+        return ModelInstanceMetaDataBase
+
+
+class ModelMetaDataPlugin(MetaDataPlugin):
+
+    name = "model"
+    unique_together = (("_content_type",),)
+
+    def get_from_path(self, queryset, path):
+        return queryset.get(_content_type=path)
+
+    def get_model(self, options):
+        class ModelMetaDataBase(MetaDataBaseModel):
+            _content_type = models.ForeignKey(ContentType)
+            if options.use_sites:
+                _site = models.ForeignKey(Site, null=True, blank=True)
+            if options.use_i18n:
+                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+            objects = self.get_manager(options)()
+
+            def __unicode__(self):
+                return unicode(self._content_type)
+
+            def _set_context(self, instance):
+                """ Use the given model instance as context for rendering 
+                    any substitutions. 
+                """
+                self.__instance = instance
+        
+            def _resolve_value(self, name):
+                value = super(ModelMetaDataBase, self)._resolve_value(name)
+                return _resolve(value, self.__instance)
+        
+            class Meta:
+                abstract = True
+                unique_together = self.get_unique_together(options)
+        return ModelMetaDataBase
 
 
 
@@ -271,7 +264,7 @@ def _resolve(value, model_instance=None, context=None):
 def _get_seo_models(meta_data):
     """ Gets the actual models to be used. """
     seo_models = []
-    for model_name in meta_data.seo_models:
+    for model_name in meta_data._meta.seo_models:
         if "." in model_name:
             app_label, model_name = model_name.split(".", 1)
             model = models.get_model(app_label, model_name)

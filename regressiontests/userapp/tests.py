@@ -162,10 +162,6 @@ class DataSelection(TestCase):
         language = 'de'
         path_meta_data = WithI18n.PathMetaData.objects.create(_language='de', title="German Path title", _path=path)
         self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, 'German Path title')
-        # Meta data with site=null should work
-        path_meta_data._language = None
-        path_meta_data.save()
-        self.assertEqual(seo_get_meta_data(path, name="WithI18n", language="de").title.value, 'German Path title')
         # Meta data with an explicitly wrong site should not work
         path_meta_data._language = "en"
         path_meta_data.save()
@@ -650,9 +646,7 @@ class MetaOptions(TestCase):
 class Templates(TestCase):
     """ Templates (System tests)
 
-        # Tests for future features (if there is demand)
-        - {% get_metadata in language %} gets for the given language
-        - {% get_metadata on site %} gets for the given site
+        To write:
         - {% get_metadata ClassName on site in language for path as var %} All at once!
     """
     def setUp(self):
@@ -729,6 +723,19 @@ class Templates(TestCase):
     def test_variable_field_name(self):
         self.deregister_alternatives()
         self.compilesTo("{% get_metadata as var %}{{ var.raw1.field.name }}", "raw1")
+
+    def test_language(self):
+        WithI18n.PathMetaData.objects.create(_path=self.path, title="A Title", _language="de")
+        meta_data = seo_get_meta_data(path=self.path, name="WithSites", language="de")
+        self.compilesTo('{% get_metadata WithI18n in "de" %}', unicode(meta_data))
+        self.compilesTo('{% get_metadata WithI18n in "en" %}', "")
+
+    def test_site(self):
+        new_site = Site.objects.create(domain="new-example.com", name="New example")
+        WithSites.PathMetaData.objects.create(_path=self.path, title="A Title", _site=new_site)
+        meta_data = seo_get_meta_data(path=self.path, name="WithSites", site=new_site)
+        self.compilesTo('{% get_metadata WithI18n on "new-example.com" %}', unicode(meta_data))
+        self.compilesTo('{% get_metadata WithI18n in "example.com" %}', "")
 
     def compilesTo(self, input, expected_output):
         """ Asserts that the given template string compiles to the given output. 
