@@ -25,13 +25,14 @@ class MetaDataField(object):
     creation_counter = 0
 
     # TODO: verbose_name, max_length
-    def __init__(self, name, head, editable, populate_from, valid_tags, choices, help_text, field, field_kwargs):
+    def __init__(self, name, head, editable, populate_from, valid_tags, choices, help_text, verbose_name, field, field_kwargs):
         self.name = name
         self.head = head
         self.editable = editable
         self.populate_from = populate_from
         self.help_text = help_text
         self.field = field or models.CharField
+        self.verbose_name = verbose_name
         if field_kwargs is None: field_kwargs = {}
         self.field_kwargs = field_kwargs
 
@@ -61,7 +62,8 @@ class MetaDataField(object):
             elif isinstance(self.populate_from, Literal):
                 self.help_text = _('If empty, \"%s\" will be used.') % self.populate_from.value
             elif isinstance(self.populate_from, basestring) and self.populate_from in cls.elements:
-                self.help_text = _('If empty, %s will be used.') % self.populate_from
+                field = cls.elements[self.populate_from]
+                self.help_text = _('If empty, %s will be used.') % field.verbose_name or field.name  
             elif isinstance(self.populate_from, basestring) and hasattr(cls, self.populate_from): 
                 populate_from = getattr(cls, self.populate_from, None)
                 if callable(populate_from) and hasattr(populate_from, 'short_description'):
@@ -77,6 +79,8 @@ class MetaDataField(object):
         kwargs = self.field_kwargs
         if self.help_text:
             kwargs.setdefault('help_text', self.help_text)
+        if self.verbose_name:
+            kwargs.setdefault('verbose_name', self.help_text)
         return self.field(**kwargs)
 
     def clean(self, value):
@@ -95,11 +99,10 @@ class Tag(MetaDataField):
         self.escape_value = escape_value
         if field_kwargs is None: 
             field_kwargs = {}
-        field_kwargs.setdefault('verbose_name', verbose_name)
         field_kwargs.setdefault('max_length', max_length)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
-        super(Tag, self).__init__(name, head, editable, populate_from, valid_tags, choices, help_text, field, field_kwargs)
+        super(Tag, self).__init__(name, head, editable, populate_from, valid_tags, choices, help_text, verbose_name, field, field_kwargs)
 
     def clean(self, value):
         value = escape_tags(value, self.valid_tags or VALID_INLINE_TAGS)
@@ -118,7 +121,6 @@ class MetaTag(MetaDataField):
                        field=models.CharField, field_kwargs=None, help_text=None):
         if field_kwargs is None: 
             field_kwargs = {}
-        field_kwargs.setdefault('verbose_name', verbose_name)
         field_kwargs.setdefault('max_length', max_length)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
@@ -126,7 +128,7 @@ class MetaTag(MetaDataField):
         if name is not None:
             assert VALID_META_NAME.match(name) is not None, u"Invalid name for MetaTag: '%s'" % name
 
-        super(MetaTag, self).__init__(name, head, editable, populate_from, valid_tags, choices, help_text, field, field_kwargs)
+        super(MetaTag, self).__init__(name, head, editable, populate_from, valid_tags, choices, help_text, verbose_name, field, field_kwargs)
 
     def clean(self, value):
         value = escape_tags(value, self.valid_tags)
@@ -164,10 +166,9 @@ class Raw(MetaDataField):
                     field_kwargs=None, help_text=None):
         if field_kwargs is None: 
             field_kwargs = {}
-        field_kwargs.setdefault('verbose_name', verbose_name)
         field_kwargs.setdefault('default', "")
         field_kwargs.setdefault('blank', True)
-        super(Raw, self).__init__(None, head, editable, populate_from, valid_tags, choices, help_text, field, field_kwargs)
+        super(Raw, self).__init__(None, head, editable, populate_from, valid_tags, choices, help_text, verbose_name, field, field_kwargs)
 
     def clean(self, value):
         # Find a suitable set of valid tags using self.head and self.valid_tags

@@ -239,32 +239,32 @@ class MetaDataBase(type):
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
-    def _get_formatted_data(cls, path, context=None):
+    def _get_formatted_data(cls, path, context=None, site=None, language=None):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls(), cls._get_instances(path, context), path)
+        return FormattedMetaData(cls(), cls._get_instances(path, context, site, language), path)
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
-    def _get_instances(cls, path, context=None):
+    def _get_instances(cls, path, context=None, site=None, language=None):
         """ A sequence of instances to discover metadata. 
             Each of the four meta data types are looked up when possible/necessary
         """
         try:
-            yield cls.PathMetaData.objects.get_from_path(path)
+            yield cls.PathMetaData.objects.get_from_path(path, site, language)
         except cls.PathMetaData.DoesNotExist:
             pass
 
         try:
-            i = cls.ModelInstanceMetaData.objects.get_from_path(path)
+            i = cls.ModelInstanceMetaData.objects.get_from_path(path, site, language)
             yield i
-            i2 = cls.ModelMetaData.objects.get_from_content_type(i._content_type)
+            i2 = cls.ModelMetaData.objects.get_from_content_type(i._content_type, site, language)
             i2._set_context(i._content_object)
             yield i2
         except (cls.ModelInstanceMetaData.DoesNotExist, cls.ModelMetaData.DoesNotExist):
             pass
 
         try:
-            i3 = cls.ViewMetaData.objects.get_from_path(path)
+            i3 = cls.ViewMetaData.objects.get_from_path(path, site, language)
             i3._set_context(context)
             yield i3
         except cls.ViewMetaData.DoesNotExist:
@@ -277,7 +277,7 @@ class MetaData(object):
 
 
 
-def get_meta_data(path, name=None, context=None):
+def get_meta_data(path, name=None, context=None, site=None, language=None):
     # Find registered MetaData object
     if name is not None:
         try:
@@ -285,8 +285,6 @@ def get_meta_data(path, name=None, context=None):
         except KeyError:
             raise Exception("Meta data definition with name \"%s\" does not exist." % name)
     else:
-        if len(registry) != 1:
-            print registry.keys()
         assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
         metadata = registry.values()[0]
     return metadata._get_formatted_data(path, context)

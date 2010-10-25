@@ -64,14 +64,6 @@ def get_meta_data(path):
 
 class DataSelection(TestCase):
     """ Data selection (unit tests). Test how meta_data objects are discovered.
-        - path-meta-data found by path, always first place to find meta data
-        - model-instance-meta-data found by get_absolute_url path on instance
-            - entry is automatically created when the (relevant) instance is edited
-        - model-meta-data is used for generic data when model instance fails
-        - view-meta-data used when nothing else matches
-        - site selection
-            - data explicitly for other sites is ignored.
-            - data explicitly for current site beats generic (site=null) data
     """
 
     def setUp(self):
@@ -325,15 +317,7 @@ class DataSelection(TestCase):
             self.fail("AttributeError should be raised on missing FormattedMetaData attribute.")
 
 class ValueResolution(TestCase):
-    """ Value resolution (unit tests)
-        + if text is missing from a given meta data entry, populate_from is used
-        + populate_from is resolved: 
-            1) callable
-            2) name of field/callable on metadata object
-            3) literal value
-        + if no text is found, a more general meta data entry is searched for (ordering is Path->ModelInstance->Model->View)
-        + if ModelInstanceMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the relevant model instance
-        - if ViewMetaData contains template tags (eg {{ blah.title }}), then this is resolved using the view's context
+    """ Value resolution (unit tests).
     """
     def setUp(self):
         self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page-one-type", content=u"Page one content.")
@@ -468,12 +452,6 @@ class ValueResolution(TestCase):
 
 class Formatting(TestCase):
     """ Formatting (unit tests)
-        + tags that are not in valid_tags are removed (valid tags can be a space separated string or list, see code for defaults)
-        - tags appearing in <head> are stripped of non-head tags
-        - inline tags are by default allowed
-        + meta tags are encoded to avoid wayward quote: " (FUTURE '&' '<' etc?)
-        + keyword tags are converted to be a comma-separated list
-        + values are escaped appropriately
     """
     def setUp(self):
         self.path_meta_data = Coverage.PathMetaData(
@@ -609,10 +587,6 @@ class Definition(TestCase):
         + if the field argument given, that Django field type is used
         + if editable is set to False, no Django model field is created. The value is always from populate_from
         + if choices is given it is passed onto the field, (expanded if just a list of strings)
-        + If help_text used, this is passed onto the field
-            + the populate_from of the field is sometimes mentioned automatically in the help_text:
-            + if populate_from value is a field name: "If empty, {{ field_name }} will be used"
-            + if populate_from value is callable with a short_description attribute: "If empty, {{ short description }}."
     """
     def test_help_text_direct(self):
         self.assert_help_text('help_text1', "Some help text 1.")
@@ -697,8 +671,8 @@ class Templates(TestCase):
         path = self.path
         self.path = "/another-path/"
         other_path = "/a-third-path/"
-        self.compilesTo("{%% get_metadata for \"%s\" %%}" % other_path, "")
-        self.compilesTo("{%% get_metadata for \"%s\" as var %%}{{ var }}" % other_path, "")
+        self.compilesTo("{%% get_metadata for \"%s\" %%}" % other_path, "<title>example.com</title>")
+        self.compilesTo("{%% get_metadata for \"%s\" as var %%}{{ var }}" % other_path, "<title>example.com</title>")
 
         self.compilesTo("{%% get_metadata for \"%s\" %%}" % path, unicode(self.meta_data))
         self.compilesTo("{%% get_metadata for \"%s\" as var %%}{{ var }}" % path, unicode(self.meta_data))
@@ -708,8 +682,8 @@ class Templates(TestCase):
         path = self.path
         self.path = "/another-path/"
         self.context = {'obj': {'get_absolute_url': "/a-third-path/"}}
-        self.compilesTo("{% get_metadata for obj %}", unicode(self.meta_data))
-        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
 
         self.context = {'obj': {'get_absolute_url': path}}
         self.compilesTo("{% get_metadata for obj %}", unicode(self.meta_data))
@@ -737,8 +711,8 @@ class Templates(TestCase):
         self.path = "/another-path/"
         self.compilesTo("{%% get_metadata Coverage for \"%s\" %%}" % path, unicode(self.meta_data))
         self.compilesTo("{%% get_metadata Coverage for \"%s\" as var %%}{{ var }}"% path, unicode(self.meta_data))
-        self.compilesTo("{%% get_metadata Coverage for obj %%}", unicode(self.meta_data))
-        self.compilesTo("{%% get_metadata Coverage for obj as var %%}{{ var }}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata Coverage for obj %}", unicode(self.meta_data))
+        self.compilesTo("{% get_metadata Coverage for obj as var %}{{ var }}", unicode(self.meta_data))
 
     def test_variable_group(self):
         self.deregister_alternatives()
@@ -764,7 +738,7 @@ class Templates(TestCase):
         request = WSGIRequest(environ) 
         context= RequestContext(request)
         context.update(self.context)
-        self.assertEqual(Template(input).render(context), expected_output)
+        self.assertEqual(Template(input).render(context).strip(), expected_output.strip())
 
     def deregister_alternatives(self):
         """ Deregister any alternative meta data classes for the sake of testing. 

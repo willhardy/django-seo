@@ -18,34 +18,40 @@ RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id',
 
 # Also Meta, but this is difficult to check
 class MetaDataManager(models.Manager):
-    def on_current_site(self):
+    def on_current_site(self, site=None):
         return self.get_query_set()
 
 class PathMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
-        return self.on_current_site().get(_path=path)
+    def get_from_path(self, path, site=None, language=None):
+        return self.on_current_site(site).get(_path=path)
 
 class ModelMetaDataManager(MetaDataManager):
-    def get_from_content_type(self, content_type):
-        return self.on_current_site().get(_content_type=content_type)
+    def get_from_content_type(self, content_type, site=None, language=None):
+        return self.on_current_site(site).get(_content_type=content_type)
 
 class ModelInstanceMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
-        return self.on_current_site().get(_path=path)
+    def get_from_path(self, path, site=None, language=None):
+        return self.on_current_site(site).get(_path=path)
 
 class ViewMetaDataManager(MetaDataManager):
-    def get_from_path(self, path):
+    def get_from_path(self, path, site=None, language=None):
         view_name = resolve_to_name(path)
         if view_name is not None:
-            return self.on_current_site().get(_view=view_name)
+            return self.on_current_site(site).get(_view=view_name)
         raise self.model.DoesNotExist()
 
 # Site versions of the above managers
 class SiteMetaDataManager(models.Manager):
-    def on_current_site(self):
+    def on_current_site(self, site=None):
+        if isinstance(site, Site):
+            site_id = site.id
+        elif site is not None:
+            site_id = site and Site.objects.get(domain=site).id
+        else:
+            site_id = settings.SITE_ID
         # Exclude entries for other sites
         where = ['_site_id IS NULL OR _site_id=%s']
-        return self.get_query_set().extra(where=where, params=[settings.SITE_ID])
+        return self.get_query_set().extra(where=where, params=[site_id])
 class SitePathMetaDataManager(SiteMetaDataManager, PathMetaDataManager): pass
 class SiteModelInstanceMetaDataManager(SiteMetaDataManager, ModelInstanceMetaDataManager): pass
 class SiteModelMetaDataManager(SiteMetaDataManager, ModelMetaDataManager): pass
