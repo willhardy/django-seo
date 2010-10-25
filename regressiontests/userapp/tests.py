@@ -16,27 +16,24 @@
     TESTS TO WRITE: 
         - Meta.seo_views: views in list are limited to the given views/apps
         - Meta.seo_models: models in list are limited to the given models/apps
-        - valid_tags given as a string
-        - Meta.seo_models = appname.modelname (ie with a dot)
+        - caching with respect to language and site?
         - south compatibility (changing a definition)
 
+        - valid_tags given as a string
+        - Meta.seo_models = appname.modelname (ie with a dot)
         + if "head" is True, tag is automatically included in the head, if "false" then no
         + if "name" is included, that is the name of the given tag, otherwise, the field name is used
         + if verbose_name is used, pass on to field (through field_kwargs)
         + if the field argument given, that Django field type is used (NB default field argument incompatibility?)
         + if editable is set to False, no Django model field is created. The value is always from populate_from
         + if choices is given it is passed onto the field, (expanded if just a list of strings)
-
         + groups: these elements are grouped together in the admin and can be output together in the template
         + use_sites: add a 'site' field to each model. Non-matching sites are removed, null is allowed, meaning all sites match.
         + sites conflicting sites, when two entries exist for different sites, the explicit (local) one wins. (Even better: both are used, in the appropriate order)
         + models: list of models and/or apps which are available for model instance meta data
         - verbose_name(_plural): this is passed onto Django
-        + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
-
         - Caching
             - meta data lookups are avoided by caching previous rendering for certain amount of time
-            - caching with respect to language and site?
 
 """
 import logging
