@@ -8,7 +8,7 @@ from django.db import models
 from django.utils.functional import lazy
 from django.utils.safestring import mark_safe
 from django.utils.html import conditional_escape
-
+from django.contrib.contenttypes.models import ContentType
 
 class NotSet(object):
     " A singleton to identify unset values (where None would have meaning) "
@@ -162,3 +162,13 @@ def escape_tags(value, valid_tags):
     
     return mark_safe(value)
 
+
+def _get_seo_content_types(seo_models):
+    """ Returns a list of content types from the models defined in settings (SEO_MODELS) """
+    try:
+        return [ ContentType.objects.get_for_model(m).id for m in seo_models ]
+    except: # previously caught DatabaseError
+        # Return an empty list if this is called too early
+        return []
+def get_seo_content_types(seo_models):
+    return lazy(_get_seo_content_types, list)(seo_models)

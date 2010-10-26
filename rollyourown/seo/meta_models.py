@@ -192,7 +192,7 @@ class ViewBackend(MetadataBackend):
 
     def get_model(self, options):
         class ViewMetadataBase(MetadataBaseModel):
-            _view = SystemViewField(unique=not (options.use_sites or options.use_i18n))
+            _view = SystemViewField(unique=not (options.use_sites or options.use_i18n), restrict_to=options.seo_views)
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
             if options.use_i18n:

@@ -1,6 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+def get_seo_views(metadata_class):
+    return get_view_names(metadata_class._meta.seo_views)
+
+    ## The following is a previous attempt to dynamically get all urls
+    ## This has a number of difficult spots, and is unnecessary when 
+    ## seo_views is given
+    #choices = SystemViews()
+    #seo_views = get_view_names(metadata_class._meta.seo_views)
+    #if seo_views:
+    #    return filter(lambda c: c[0] in seo_views, choices)
+    #else:
+    #    return choices
+
+from django.db.models.loading import get_app
+
+def get_view_names(seo_views):
+    output = []
+    for name in seo_views:
+        try:
+            app = get_app(name)
+        except:
+            output.append(name)
+        else:
+            app_name = app.__name__.split(".")[:-1]
+            app_name.append("urls")
+            urls = __import__(".".join(app_name)).urls
+            for url in urls.urlpatterns:
+                if url.name:
+                    output.append(url.name)
+    return output
+
 from rollyourown.seo.utils import LazyChoices
 from django.utils.functional import lazy
 
@@ -43,7 +74,8 @@ from django.db.models.fields import BLANK_CHOICE_DASH
 from django.db import models
 from django.utils.text import capfirst
 class SystemViewField(models.CharField):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, restrict_to, *args, **kwargs):
+        self.restrict_to = restrict_to
         kwargs.setdefault('max_length', 255)
         kwargs.setdefault('choices', SystemViews())
         super(SystemViewField, self).__init__(*args, **kwargs)

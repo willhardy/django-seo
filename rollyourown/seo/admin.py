@@ -8,6 +8,7 @@ from django.utils.encoding import smart_unicode
 
 from rollyourown.seo.meta_models import _get_seo_models
 from rollyourown.seo.modelmetadata import get_seo_content_types
+from rollyourown.seo.systemviews import get_seo_views
 
 # TODO Use groups as fieldsets
 
@@ -60,10 +61,13 @@ def register_seo_admin(admin_site, metadata_class):
     class ModelAdmin(model_admin):
         form = get_model_form(metadata_class)
 
+    class ViewAdmin(view_admin):
+        form = get_view_form(metadata_class)
+
     admin_site.register(metadata_class._meta.get_model('path'), path_admin)
     admin_site.register(metadata_class._meta.get_model('modelinstance'), model_instance_admin)
     admin_site.register(metadata_class._meta.get_model('model'), ModelAdmin)
-    admin_site.register(metadata_class._meta.get_model('view'), view_admin)
+    admin_site.register(metadata_class._meta.get_model('view'), ViewAdmin)
 
 
 def get_inline(metadata_class):
@@ -72,12 +76,25 @@ def get_inline(metadata_class):
 
 
 def get_model_form(metadata_class):
-    # Restrict conetnt type choices to the models set in seo_models
+    # Restrict content type choices to the models set in seo_models
     seo_models = _get_seo_models(metadata_class)
     content_type_choices = [(x._get_pk_val(), smart_unicode(x)) for x in ContentType.objects.filter(id__in=get_seo_content_types(seo_models))]
 
     class ModelMetadataForm(forms.ModelForm):
-        content_type = forms.ChoiceField(choices=content_type_choices)
+        _content_type = forms.ChoiceField(choices=content_type_choices)
+
+        class Meta:
+            model = metadata_class._meta.get_model('model')
+
+    return ModelMetadataForm
+
+
+def get_view_form(metadata_class):
+    # Restrict content type choices to the models set in seo_models
+    view_choices = [(key, " ".join(key.split("_"))) for key in get_seo_views(metadata_class)]
+
+    class ModelMetadataForm(forms.ModelForm):
+        _view = forms.ChoiceField(choices=view_choices)
 
         class Meta:
             model = metadata_class._meta.get_model('model')

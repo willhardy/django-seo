@@ -13,6 +13,7 @@ class Options(object):
         self.use_cache = meta.pop('use_cache', False)
         self.groups = meta.pop('groups', {})
         self.seo_models = meta.pop('seo_models', [])
+        self.seo_views = meta.pop('seo_views', [])
         self.verbose_name = meta.pop('verbose_name', None)
         self.verbose_name_plural = meta.pop('verbose_name_plural', None)
         self.backends = meta.pop('backends', ('path', 'modelinstance', 'model', 'view'))

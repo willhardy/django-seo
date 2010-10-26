@@ -647,18 +647,6 @@ class MetaOptions(TestCase):
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
     """
 
-    def test_seo_views(self):
-        """ Checks that the choices for a _view field is limited to the views in Meta.seo_views 
-        """
-        choices = Coverage._meta.get_model('view')._meta.get_field('_view').choices
-        self.assertEqual(len(choices), 4)
-
-    def test_seo_models(self):
-        """ Checks that the choices for a _content_type field is limited to the models in Meta.seo_models 
-        """
-        choices = Coverage._meta.get_model('model')._meta.get_field('_content_type').choices
-        self.assertEqual(len(choices), 4)
-
     def test_use_cache(self):
         """ Checks that cache is being used when use_cache is set.
             Will only work if cache backend is not dummy.
