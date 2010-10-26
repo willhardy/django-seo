@@ -20,8 +20,7 @@ from django.utils.encoding import iri_to_uri
 from rollyourown.seo.utils import NotSet, Literal
 from rollyourown.seo.options import Options
 from rollyourown.seo.fields import MetadataField, Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import backend_registry
-from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
+from rollyourown.seo.backends import backend_registry, RESERVED_FIELD_NAMES
 
 
 registry = SortedDict()
