@@ -80,3 +80,27 @@ class WithRedirectSites(seo.MetaData):
     class Meta:
         use_sites = True
         use_redirect = True
+
+class WithCache(seo.MetaData):
+    title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
+    subtitle = seo.Tag(head=True)
+
+    class Meta:
+        use_cache = True
+
+class WithCacheSites(seo.MetaData):
+    title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
+    subtitle = seo.Tag(head=True)
+
+    class Meta:
+        use_cache = True
+        use_sites = True
+
+class WithCacheI18n(seo.MetaData):
+    title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
+    subtitle = seo.Tag(head=True)
+
+    class Meta:
+        use_cache = True
+        use_i18n = True
+

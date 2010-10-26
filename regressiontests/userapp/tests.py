@@ -13,9 +13,8 @@
     * Templates (System tests)
     * Random (series of various uncategorised tests)
 
+
     TESTS TO WRITE: 
-        - Meta.seo_views: views in list are limited to the given views/apps
-        - Meta.seo_models: models in list are limited to the given models/apps
         - caching with respect to language and site?
         - south compatibility (changing a definition)
 
@@ -48,11 +47,14 @@ from django.conf import settings
 from django.db import IntegrityError
 from django.core.handlers.wsgi import WSGIRequest
 from django.template import Template, RequestContext, TemplateSyntaxError
+from django.core.cache import cache
+from django.utils.hashcompat import md5_constructor
+from django.utils.encoding import iri_to_uri
 
 from rollyourown.seo import get_meta_data as seo_get_meta_data
 from rollyourown.seo.base import registry
 from userapp.models import Page, Product, Category, NoPath
-from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites
+from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites, WithCache, WithCacheSites, WithCacheI18n
 
 
 def get_meta_data(path):
@@ -641,6 +643,63 @@ class MetaOptions(TestCase):
         + HelpText: Help text can be applied in bulk by using a special class, like 'Meta'
     """
 
+    def test_seo_views(self):
+        """ Checks that the choices for a _view field is limited to the views in Meta.seo_views 
+        """
+        choices = Coverage.ViewMetaData._meta.get_field('_view').choices
+        self.assertEqual(len(choices), 4)
+
+    def test_seo_models(self):
+        """ Checks that the choices for a _content_type field is limited to the models in Meta.seo_models 
+        """
+        choices = Coverage.ModelMetaData._meta.get_field('_content_type').choices
+        self.assertEqual(len(choices), 4)
+
+    def test_use_cache(self):
+        """ Checks that cache is being used when use_cache is set.
+            Will only work if cache backend is not dummy.
+        """
+        if 'dummy' not in settings.CACHE_BACKEND:
+            path = '/'
+            hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
+
+            #unicode(seo_get_meta_data(path, name="Coverage"))
+            unicode(seo_get_meta_data(path, name="WithCache"))
+
+            self.assertEqual(cache.get('rollyourown.seo.Coverage.%s.title' % hexpath), None)
+            self.assertEqual(cache.get('rollyourown.seo.WithCache.%s.title' % hexpath), "1234")
+            self.assertEqual(cache.get('rollyourown.seo.WithCache.%s.subtitle' % hexpath), "")
+
+    def test_use_cache_site(self):
+        """ Checks that the cache plays nicely with sites.
+        """
+        if 'dummy' not in settings.CACHE_BACKEND:
+            path = '/'
+            site = Site.objects.get_current()
+            hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest()
+
+            #unicode(seo_get_meta_data(path, name="Coverage"))
+            unicode(seo_get_meta_data(path, name="WithCacheSites", site=site))
+
+            self.assertEqual(cache.get('rollyourown.seo.Coverage.%s.title' % hexpath), None)
+            self.assertEqual(cache.get('rollyourown.seo.WithCacheSites.%s.title' % hexpath), "1234")
+            self.assertEqual(cache.get('rollyourown.seo.WithCacheSites.%s.subtitle' % hexpath), "")
+
+    def test_use_cache_i18n(self):
+        """ Checks that the cache plays nicely with i18n. 
+        """
+        if 'dummy' not in settings.CACHE_BACKEND:
+            path = '/'
+            hexpath = md5_constructor(iri_to_uri(path)).hexdigest()
+
+            #unicode(seo_get_meta_data(path, name="Coverage"))
+            unicode(seo_get_meta_data(path, name="WithCacheI18n", language='de'))
+
+            self.assertEqual(cache.get('rollyourown.seo.Coverage.%s.de.title' % hexpath), None)
+            self.assertEqual(cache.get('rollyourown.seo.WithCacheI18n.%s.en.title' % hexpath), None)
+            self.assertEqual(cache.get('rollyourown.seo.WithCacheI18n.%s.de.title' % hexpath), "1234")
+            self.assertEqual(cache.get('rollyourown.seo.WithCacheI18n.%s.de.subtitle' % hexpath), "")
+
 
 class Templates(TestCase):
     """ Templates (System tests)
@@ -758,6 +817,9 @@ class Templates(TestCase):
         # Reregister any missing classes
         if len(registry) < 5:
             registry['WithSites'] = WithSites
+            registry['WithCache'] = WithCache
+            registry['WithCacheSites'] = WithCacheSites
+            registry['WithCacheI18n'] = WithCacheI18n
             registry['WithI18n'] = WithI18n
             registry['WithRedirect'] = WithRedirect
             registry['WithRedirectSites'] = WithRedirectSites

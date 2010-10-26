@@ -34,10 +34,16 @@ class FormattedMetaData(object):
         Metadata for each field may be sourced from any one of the relevant instances passed.
     """
 
-    def __init__(self, metadata, instances, path):
+    def __init__(self, metadata, instances, path, site=None, language=None):
         self.__metadata = metadata
-        path = md5_constructor(iri_to_uri(path)).hexdigest() 
-        self.__cache_prefix = 'rollyourown.seo.%s.%s' % (self.__metadata.__class__.__name__, path)
+        if metadata._meta.use_sites:
+            hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest() 
+        else:
+            hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
+        if metadata._meta.use_i18n:
+            self.__cache_prefix = 'rollyourown.seo.%s.%s.%s' % (self.__metadata.__class__.__name__, hexpath, language)
+        else:
+            self.__cache_prefix = 'rollyourown.seo.%s.%s' % (self.__metadata.__class__.__name__, hexpath)
         self.__instances_original = instances
         self.__instances_cache = []
 
@@ -82,18 +88,21 @@ class FormattedMetaData(object):
         # Look for a group called "name"
         if name in self.__metadata._meta.groups:
             if value is not None:
-                return value
+                return value or None
             value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
         # Look for an element called "name"
         elif name in self.__metadata.elements:
             if value is not None:
-                return BoundMetaDataField(self.__metadata.elements[name], value)
-            value = BoundMetaDataField(self.__metadata.elements[name], self._resolve_value(name))
+                return BoundMetaDataField(self.__metadata.elements[name], value or None)
+            value = self._resolve_value(name)
+            cache.set(cache_key, value or '')
+            return BoundMetaDataField(self.__metadata.elements[name], value)
         else:
             raise AttributeError
 
-        cache.set(cache_key, value)
-        return value
+        cache.set(cache_key, value or '')
+
+        return value or None
 
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
@@ -231,7 +240,7 @@ class MetaDataBase(type):
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_formatted_data(cls, path, context=None, site=None, language=None):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls(), cls._get_instances(path, context, site, language), path)
+        return FormattedMetaData(cls(), cls._get_instances(path, context, site, language), path, site, language)
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)

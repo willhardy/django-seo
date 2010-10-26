@@ -111,6 +111,8 @@ INSTALLED_APPS = [
 ]
 
 CACHE_BACKEND = 'dummy://'
+# Enable for testing cache
+#CACHE_BACKEND = "locmem://?timeout=30&max_entries=400"
 
 # If south is available, add it
 try:
