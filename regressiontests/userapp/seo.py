@@ -5,8 +5,8 @@ from django.contrib.sites.models import Site
 current_site = Site.objects.get_current()
 
 
-class Coverage(seo.MetaData):
-    """ A SEO meta data definition, which should cover all configurable options.
+class Coverage(seo.Metadata):
+    """ A SEO metadata definition, which should cover all configurable options.
     """
     def get_populate_from1(self):
         return "wxy"
@@ -42,8 +42,8 @@ class Coverage(seo.MetaData):
     field1       = seo.Tag(field=models.TextField)
 
     class Meta:
-        verbose_name = "Basic Meta datum"
-        verbose_name_plural = "Basic Meta data"
+        verbose_name = "Basic Metadatum"
+        verbose_name_plural = "Basic Metadata"
         use_sites = False
         groups = { 
             'advanced': ('raw1', 'raw2' ),
@@ -56,39 +56,39 @@ class Coverage(seo.MetaData):
         help_text2 = "Updated help text2."
 
 
-class WithSites(seo.MetaData):
+class WithSites(seo.Metadata):
     title        = seo.Tag()
 
     class Meta:
         use_sites = True
 
-class WithI18n(seo.MetaData):
+class WithI18n(seo.Metadata):
     title        = seo.Tag()
 
     class Meta:
         use_i18n = True
 
-class WithRedirect(seo.MetaData):
+class WithRedirect(seo.Metadata):
     title        = seo.Tag()
 
     class Meta:
         use_redirect = True
 
-class WithRedirectSites(seo.MetaData):
+class WithRedirectSites(seo.Metadata):
     title        = seo.Tag()
 
     class Meta:
         use_sites = True
         use_redirect = True
 
-class WithCache(seo.MetaData):
+class WithCache(seo.Metadata):
     title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
     subtitle = seo.Tag(head=True)
 
     class Meta:
         use_cache = True
 
-class WithCacheSites(seo.MetaData):
+class WithCacheSites(seo.Metadata):
     title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
     subtitle = seo.Tag(head=True)
 
@@ -96,7 +96,7 @@ class WithCacheSites(seo.MetaData):
         use_cache = True
         use_sites = True
 
-class WithCacheI18n(seo.MetaData):
+class WithCacheI18n(seo.Metadata):
     title    = seo.Tag(head=True, populate_from=seo.Literal("1234"))
     subtitle = seo.Tag(head=True)
 

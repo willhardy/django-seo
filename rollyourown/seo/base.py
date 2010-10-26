@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # TODO:
-#    * Meta.seo_views to list views or apps that will appear in the list in the admin (like Meta.seo_models)
 #    * Move/rename namespace polluting attributes
 #    * Documentation
 #    * Make backends optional: Meta.backends = (path, modelinstance/model, view)
@@ -20,15 +19,15 @@ from django.utils.encoding import iri_to_uri
 
 from rollyourown.seo.utils import NotSet, Literal
 from rollyourown.seo.options import Options
-from rollyourown.seo.fields import MetaDataField, Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathMetaDataPlugin, ViewMetaDataPlugin, ModelInstanceMetaDataPlugin, ModelMetaDataPlugin
+from rollyourown.seo.fields import MetadataField, Tag, MetaTag, KeywordTag, Raw
+from rollyourown.seo.meta_models import PathMetadataPlugin, ViewMetadataPlugin, ModelInstanceMetadataPlugin, ModelMetadataPlugin
 from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
 
 
 registry = SortedDict()
 
 
-class FormattedMetaData(object):
+class FormattedMetadata(object):
     """ Allows convenient access to selected metadata.
         Metadata for each field may be sourced from any one of the relevant instances passed.
     """
@@ -97,16 +96,16 @@ class FormattedMetaData(object):
         if name in self.__metadata._meta.groups:
             if value is not None:
                 return value or None
-            value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
+            value = '\n'.join(unicode(BoundMetadataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
 
         # Look for an element called "name"
         elif name in self.__metadata.elements:
             if value is not None:
-                return BoundMetaDataField(self.__metadata.elements[name], value or None)
+                return BoundMetadataField(self.__metadata.elements[name], value or None)
             value = self._resolve_value(name)
             if cache_key is not None:
                 cache.set(cache_key, value or '')
-            return BoundMetaDataField(self.__metadata.elements[name], value)
+            return BoundMetadataField(self.__metadata.elements[name], value)
         else:
             raise AttributeError
 
@@ -130,8 +129,8 @@ class FormattedMetaData(object):
         return value
 
 
-class BoundMetaDataField(object):
-    """ An object to help provide templates with access to a "bound" meta data field. """
+class BoundMetadataField(object):
+    """ An object to help provide templates with access to a "bound" metadata field. """
 
     def __init__(self, field, value):
         self.field = field
@@ -150,11 +149,11 @@ class BoundMetaDataField(object):
         return self.__unicode__().encode("ascii", "ignore")
 
 
-class MetaDataBase(type):
+class MetadataBase(type):
     def __new__(cls, name, bases, attrs):
-        # TODO: Think of a better test to avoid processing MetaData parent class
+        # TODO: Think of a better test to avoid processing Metadata parent class
         if bases == (object,):
-            return super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
+            return super(MetadataBase, cls).__new__(cls, name, bases, attrs)
 
         # Save options as a dict for now (we will be editing them)
         # TODO: Is this necessary, should we bother relaying Django Meta options?
@@ -171,13 +170,13 @@ class MetaDataBase(type):
 
         # Collect and sort our elements
         elements = [(key, attrs.pop(key)) for key, obj in attrs.items() 
-                                        if isinstance(obj, MetaDataField)]
+                                        if isinstance(obj, MetadataField)]
         elements.sort(lambda x, y: cmp(x[1].creation_counter, 
                                                 y[1].creation_counter))
         elements = SortedDict(elements)
 
         # Validation:
-        # TODO: Write a test framework for seo.MetaData validation
+        # TODO: Write a test framework for seo.Metadata validation
         # Check that no group names clash with element names
         for key,members in options.groups.items():
             assert key not in elements, "Group name '%s' clashes with field name" % key
@@ -190,7 +189,7 @@ class MetaDataBase(type):
 
 
         # Preprocessing complete, here is the new class
-        new_class = super(MetaDataBase, cls).__new__(cls, name, bases, attrs)
+        new_class = super(MetadataBase, cls).__new__(cls, name, bases, attrs)
 
         # Some useful attributes
         options.update_from_name(name)
@@ -229,25 +228,25 @@ class MetaDataBase(type):
             app_label = 'seo'
         fields['Meta'] = BaseMeta
         fields['__module__'] = attrs['__module__']
-        MetaDataBaseModel = type('%sBase' % name, (models.Model,), fields)
+        MetadataBaseModel = type('%sBase' % name, (models.Model,), fields)
 
         # Function to build our subclasses for us
         def create_new_class(md_type, base):
             # TODO: Rename this field
-            new_md_attrs = {'_meta_data': new_class, '__module__': __name__ }
+            new_md_attrs = {'_metadata': new_class, '__module__': __name__ }
 
             new_md_meta = {}
             new_md_meta['verbose_name'] = '%s (%s)' % (new_class._meta.verbose_name, md_type)
             new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class._meta.verbose_name_plural, md_type)
             new_md_meta['unique_together'] = base._meta.unique_together
             new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
-            return type("%s%s"%(name,"".join(md_type.split())), (base, MetaDataBaseModel), new_md_attrs.copy())
+            return type("%s%s"%(name,"".join(md_type.split())), (base, MetadataBaseModel), new_md_attrs.copy())
 
         # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        new_class.PathMetaData = create_new_class('Path', PathMetaDataPlugin().get_model(options))
-        new_class.ViewMetaData = create_new_class('View', ViewMetaDataPlugin().get_model(options))
-        new_class.ModelInstanceMetaData = create_new_class('Model Instance', ModelInstanceMetaDataPlugin().get_model(options))
-        new_class.ModelMetaData = create_new_class('Model', ModelMetaDataPlugin().get_model(options))
+        new_class.PathMetadata = create_new_class('Path', PathMetadataPlugin().get_model(options))
+        new_class.ViewMetadata = create_new_class('View', ViewMetadataPlugin().get_model(options))
+        new_class.ModelInstanceMetadata = create_new_class('Model Instance', ModelInstanceMetadataPlugin().get_model(options))
+        new_class.ModelMetadata = create_new_class('Model', ModelMetadataPlugin().get_model(options))
 
         registry[name] = new_class
 
@@ -257,51 +256,51 @@ class MetaDataBase(type):
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_formatted_data(cls, path, context=None, site=None, language=None):
         """ Return an object to conveniently access the appropriate values. """
-        return FormattedMetaData(cls(), cls._get_instances(path, context, site, language), path, site, language)
+        return FormattedMetadata(cls(), cls._get_instances(path, context, site, language), path, site, language)
 
 
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_instances(cls, path, context=None, site=None, language=None):
         """ A sequence of instances to discover metadata. 
-            Each of the four meta data types are looked up when possible/necessary
+            Each of the four metadata types are looked up when possible/necessary
         """
         try:
-            yield cls.PathMetaData.objects.get_from_path(path, site, language)
-        except cls.PathMetaData.DoesNotExist:
+            yield cls.PathMetadata.objects.get_from_path(path, site, language)
+        except cls.PathMetadata.DoesNotExist:
             pass
 
         try:
-            i = cls.ModelInstanceMetaData.objects.get_from_path(path, site, language)
+            i = cls.ModelInstanceMetadata.objects.get_from_path(path, site, language)
             yield i
-            i2 = cls.ModelMetaData.objects.get_from_path(i._content_type, site, language)
+            i2 = cls.ModelMetadata.objects.get_from_path(i._content_type, site, language)
             i2._set_context(i._content_object)
             yield i2
-        except (cls.ModelInstanceMetaData.DoesNotExist, cls.ModelMetaData.DoesNotExist):
+        except (cls.ModelInstanceMetadata.DoesNotExist, cls.ModelMetadata.DoesNotExist):
             pass
 
         try:
-            i3 = cls.ViewMetaData.objects.get_from_path(path, site, language)
+            i3 = cls.ViewMetadata.objects.get_from_path(path, site, language)
             i3._set_context(context)
             yield i3
-        except cls.ViewMetaData.DoesNotExist:
+        except cls.ViewMetadata.DoesNotExist:
             pass
 
 
 
-class MetaData(object):
-    __metaclass__ = MetaDataBase
+class Metadata(object):
+    __metaclass__ = MetadataBase
 
 
 
-def get_meta_data(path, name=None, context=None, site=None, language=None):
-    # Find registered MetaData object
+def get_metadata(path, name=None, context=None, site=None, language=None):
+    # Find registered Metadata object
     if name is not None:
         try:
             metadata = registry[name]
         except KeyError:
-            raise Exception("Meta data definition with name \"%s\" does not exist." % name)
+            raise Exception("Metadata definition with name \"%s\" does not exist." % name)
     else:
-        assert len(registry) == 1, "You must have exactly one MetaData class, if using get_meta_data() without a 'name' parameter."
+        assert len(registry) == 1, "You must have exactly one Metadata class, if using get_metadata() without a 'name' parameter."
         metadata = registry.values()[0]
     return metadata._get_formatted_data(path, context, site, language)
 
@@ -309,7 +308,7 @@ def get_meta_data(path, name=None, context=None, site=None, language=None):
 
 def _update_callback(model_class, sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant
-        meta data, or just creating an entry. 
+        metadata, or just creating an entry. 
     
         NB:
         It is theoretically possible that this code will lead to two instances
@@ -317,7 +316,7 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
         then this shouldn't happen.
         I've held it to be more important to avoid double path entries.
     """
-    meta_data = None
+    metadata = None
     content_type = ContentType.objects.get_for_model(instance)
     
     # If this object does not define a path, don't worry about automatic update
@@ -328,26 +327,26 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
 
     try:
         # Look for an existing object with this path
-        meta_data = model_class.objects.get_from_path(path)
+        metadata = model_class.objects.get_from_path(path)
         # If another object has the same path, remove the path.
         # It's harsh, but we need a unique path and will assume the other
         # link is outdated.
-        if meta_data._content_type != content_type or meta_data._object_id != instance.pk:
-            meta_data._path = meta_data._content_object.get_absolute_url()
-            meta_data.save()
-            # Move on, this meta_data instance isn't for us
-            meta_data = None
+        if metadata._content_type != content_type or metadata._object_id != instance.pk:
+            metadata._path = metadata._content_object.get_absolute_url()
+            metadata.save()
+            # Move on, this metadata instance isn't for us
+            metadata = None
     except model_class.DoesNotExist:
         pass
     
     # If the path-based search didn't work, look for (or create) an existing
     # instance linked to this object.
-    if not meta_data:
-        meta_data, md_created = model_class.objects.get_or_create(_content_type=content_type, _object_id=instance.pk)
-        meta_data._path = path
-        meta_data.save()
+    if not metadata:
+        metadata, md_created = model_class.objects.get_or_create(_content_type=content_type, _object_id=instance.pk)
+        metadata._path = path
+        metadata.save()
     
-    # XXX Update the MetaData instance with data from the object
+    # XXX Update the Metadata instance with data from the object
     
 def _delete_callback(model_class, sender, instance,  **kwargs):
     content_type = ContentType.objects.get_for_model(instance)
@@ -358,12 +357,12 @@ def _delete_callback(model_class, sender, instance,  **kwargs):
 
 
 def register_signals():
-    for meta_data_class in registry.values():
-        update_callback = curry(_update_callback, model_class=meta_data_class.ModelInstanceMetaData)
-        delete_callback = curry(_delete_callback, model_class=meta_data_class.ModelInstanceMetaData)
+    for metadata_class in registry.values():
+        update_callback = curry(_update_callback, model_class=metadata_class.ModelInstanceMetadata)
+        delete_callback = curry(_delete_callback, model_class=metadata_class.ModelInstanceMetadata)
 
         ## Connect the models listed in settings to the update callback.
-        for model in _get_seo_models(meta_data_class):
+        for model in _get_seo_models(metadata_class):
             models.signals.post_save.connect(update_callback, sender=model, weak=False)
             models.signals.pre_delete.connect(delete_callback, sender=model, weak=False)
 

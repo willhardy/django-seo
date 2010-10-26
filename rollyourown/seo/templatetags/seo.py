@@ -3,14 +3,14 @@
 
 from django import template
 import logging
-from rollyourown.seo import get_meta_data
+from rollyourown.seo import get_metadata
 from django.template import VariableDoesNotExist
 
 register = template.Library()
 
-class MetaDataNode(template.Node):
-    def __init__(self, meta_data_name, variable_name, path, site, language):
-        self.meta_data_name = meta_data_name
+class MetadataNode(template.Node):
+    def __init__(self, metadata_name, variable_name, path, site, language):
+        self.metadata_name = metadata_name
         self.variable_name = variable_name
         self.path = template.Variable(path or 'request.META.PATH_INFO')
         self.site = site and template.Variable(site) or None
@@ -41,24 +41,24 @@ class MetaDataNode(template.Node):
         if self.language:
             kwargs['language'] = self.language.resolve(context)
 
-        # Fetch the meta data
-        meta_data = get_meta_data(path, self.meta_data_name, context, **kwargs)
+        # Fetch the metadata
+        metadata = get_metadata(path, self.metadata_name, context, **kwargs)
 
         # If a variable name is given, store the result there
         if self.variable_name is not None:
-            context[self.variable_name] = meta_data
+            context[self.variable_name] = metadata
             return ""
         else:
-            return unicode(meta_data)
+            return unicode(metadata)
 
 
 def do_get_metadata(parser, token):
     """
-    Retrieve an object which can produce (and format) meta data.
+    Retrieve an object which can produce (and format) metadata.
 
         {% get_metadata [for my_path] [in my_language] [on my_site] [as my_variable] %}
 
-        or if you have multiple meta data classes:
+        or if you have multiple metadata classes:
 
         {% get_metadata MyClass [as my_variable] %}
 
@@ -66,11 +66,11 @@ def do_get_metadata(parser, token):
     bits = list(token.split_contents())
     tag_name = bits[0]
     bits = bits[1:]
-    meta_data_name = None
+    metadata_name = None
     args = { 'as': None, 'for': None, 'in': None, 'on': None }
 
     if len(bits) % 2:
-        meta_data_name = bits[0]
+        metadata_name = bits[0]
         bits = bits[1:]
     while len(bits):
         if len(bits) < 2 or bits[0] not in args:
@@ -78,7 +78,7 @@ def do_get_metadata(parser, token):
         args[bits[0]] = bits[1]
         bits = bits[2:]
 
-    return MetaDataNode(meta_data_name, args['as'], args['for'], args['on'], args['in'])
+    return MetadataNode(metadata_name, args['as'], args['for'], args['on'], args['in'])
 
 
 register.tag('get_metadata', do_get_metadata)

@@ -10,8 +10,8 @@ register_seo_admin(admin.site, WithSites)
 
 from userapp.models import Product, Page, Category
 
-class WithMetaDataAdmin(admin.ModelAdmin):
+class WithMetadataAdmin(admin.ModelAdmin):
     inlines = [get_inline(Coverage), get_inline(WithSites)]
 
-admin.site.register(Product, WithMetaDataAdmin)
-admin.site.register(Page, WithMetaDataAdmin)
+admin.site.register(Product, WithMetadataAdmin)
+admin.site.register(Page, WithMetadataAdmin)

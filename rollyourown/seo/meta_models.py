@@ -12,29 +12,29 @@ from django.template import Template, Context
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
-RESERVED_FIELD_NAMES = ('_meta_data', '_path', '_content_type', '_object_id',
+RESERVED_FIELD_NAMES = ('_metadata', '_path', '_content_type', '_object_id',
                         '_content_object', '_view', '_site', 'objects', 
                         '_resolve_value', '_set_context', 'id', 'pk' )
 
 
-class MetaDataBaseModel(models.Model):
+class MetadataBaseModel(models.Model):
 
     class Meta:
         abstract = True
 
     def __init__(self, *args, **kwargs):
-        super(MetaDataBaseModel, self).__init__(*args, **kwargs)
+        super(MetadataBaseModel, self).__init__(*args, **kwargs)
 
         # Provide access to a class instance
-        # TODO Rename to __meta_data
-        self._meta_data = self.__class__._meta_data()
+        # TODO Rename to __metadata
+        self._metadata = self.__class__._metadata()
 
     # TODO Rename to __resolve_value
     def _resolve_value(self, name):
         """ Returns an appropriate value for the given name. """
         name = str(name)
-        if name in self._meta_data.elements:
-            element = self._meta_data.elements[name]
+        if name in self._metadata.elements:
+            element = self._metadata.elements[name]
 
             # Look in instances for an explicit value
             if element.editable:
@@ -48,7 +48,7 @@ class MetaDataBaseModel(models.Model):
                 if getattr(populate_from, 'im_self', None):
                     return populate_from()
                 else:
-                    return populate_from(self._meta_data)
+                    return populate_from(self._metadata)
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:
@@ -56,7 +56,7 @@ class MetaDataBaseModel(models.Model):
 
         # If this is not an element, look for an attribute on metadata
         try:
-            value = getattr(self._meta_data, name)
+            value = getattr(self._metadata, name)
         except AttributeError:
             pass
         else:
@@ -64,7 +64,7 @@ class MetaDataBaseModel(models.Model):
                 if getattr(value, 'im_self', None):
                     return value()
                 else:
-                    return value(self._meta_data)
+                    return value(self._metadata)
             return value
 
 
@@ -87,7 +87,7 @@ class BaseManager(models.Manager):
         return queryset
 
 
-class MetaDataPlugin(object):
+class MetadataPlugin(object):
     name = None
     unique_together = None
 
@@ -119,7 +119,7 @@ class MetaDataPlugin(object):
         return _Manager
 
 
-class PathMetaDataPlugin(MetaDataPlugin):
+class PathMetadataPlugin(MetadataPlugin):
 
     unique_together = (("_path",),)
 
@@ -127,7 +127,7 @@ class PathMetaDataPlugin(MetaDataPlugin):
         return queryset.get(_path=path)
 
     def get_model(self, options):
-        class PathMetaDataBase(MetaDataBaseModel):
+        class PathMetadataBase(MetadataBaseModel):
             _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
@@ -142,10 +142,10 @@ class PathMetaDataPlugin(MetaDataPlugin):
                 abstract = True
                 unique_together = self.get_unique_together(options)
 
-        return PathMetaDataBase
+        return PathMetadataBase
 
 
-class ViewMetaDataPlugin(MetaDataPlugin):
+class ViewMetadataPlugin(MetadataPlugin):
 
     unique_together = (("_view",),)
 
@@ -156,7 +156,7 @@ class ViewMetaDataPlugin(MetaDataPlugin):
         raise queryset.model.DoesNotExist()
 
     def get_model(self, options):
-        class ViewMetaDataBase(MetaDataBaseModel):
+        class ViewMetadataBase(MetadataBaseModel):
             _view = SystemViewField(unique=not (options.use_sites or options.use_i18n))
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
@@ -169,7 +169,7 @@ class ViewMetaDataPlugin(MetaDataPlugin):
                 self.__context = context
         
             def _resolve_value(self, name):
-                value = super(ViewMetaDataBase, self)._resolve_value(name)
+                value = super(ViewMetadataBase, self)._resolve_value(name)
                 return _resolve(value, context=self.__context)
 
             def __unicode__(self):
@@ -179,10 +179,10 @@ class ViewMetaDataPlugin(MetaDataPlugin):
                 abstract = True
                 unique_together = self.get_unique_together(options)
 
-        return ViewMetaDataBase
+        return ViewMetadataBase
 
 
-class ModelInstanceMetaDataPlugin(MetaDataPlugin):
+class ModelInstanceMetadataPlugin(MetadataPlugin):
 
     name = "modelinstance"
     unique_together = (("_path",), ("_content_type", "_object_id"))
@@ -191,7 +191,7 @@ class ModelInstanceMetaDataPlugin(MetaDataPlugin):
         return queryset.get(_path=path)
 
     def get_model(self, options):
-        class ModelInstanceMetaDataBase(MetaDataBaseModel):
+        class ModelInstanceMetadataBase(MetadataBaseModel):
             _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
             _content_type = models.ForeignKey(ContentType, editable=False)
             _object_id = models.PositiveIntegerField(editable=False)
@@ -209,10 +209,10 @@ class ModelInstanceMetaDataPlugin(MetaDataPlugin):
                 unique_together = self.get_unique_together(options)
                 abstract = True
 
-        return ModelInstanceMetaDataBase
+        return ModelInstanceMetadataBase
 
 
-class ModelMetaDataPlugin(MetaDataPlugin):
+class ModelMetadataPlugin(MetadataPlugin):
 
     name = "model"
     unique_together = (("_content_type",),)
@@ -221,7 +221,7 @@ class ModelMetaDataPlugin(MetaDataPlugin):
         return queryset.get(_content_type=path)
 
     def get_model(self, options):
-        class ModelMetaDataBase(MetaDataBaseModel):
+        class ModelMetadataBase(MetadataBaseModel):
             _content_type = models.ForeignKey(ContentType)
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
@@ -239,13 +239,13 @@ class ModelMetaDataPlugin(MetaDataPlugin):
                 self.__instance = instance
         
             def _resolve_value(self, name):
-                value = super(ModelMetaDataBase, self)._resolve_value(name)
+                value = super(ModelMetadataBase, self)._resolve_value(name)
                 return _resolve(value, self.__instance)
         
             class Meta:
                 abstract = True
                 unique_together = self.get_unique_together(options)
-        return ModelMetaDataBase
+        return ModelMetadataBase
 
 
 
@@ -261,10 +261,10 @@ def _resolve(value, model_instance=None, context=None):
         value = Template(value).render(context)
     return value
 
-def _get_seo_models(meta_data):
+def _get_seo_models(metadata):
     """ Gets the actual models to be used. """
     seo_models = []
-    for model_name in meta_data._meta.seo_models:
+    for model_name in metadata._meta.seo_models:
         if "." in model_name:
             app_label, model_name = model_name.split(".", 1)
             model = models.get_model(app_label, model_name)

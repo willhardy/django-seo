@@ -4,7 +4,7 @@
 from rollyourown import seo
 from django.conf import settings
 
-class DefaultMetaData(seo.MetaData):
+class DefaultMetadata(seo.Metadata):
     """ A very basic default class for those who do not wish to write their own.
     """
     title       = seo.Tag(head=True, max_length=68)
@@ -13,8 +13,8 @@ class DefaultMetaData(seo.MetaData):
     heading     = seo.Tag(name="h1")
 
     class Meta:
-        verbose_name = "Meta data"
-        verbose_name_plural = "Meta data"
+        verbose_name = "Metadata"
+        verbose_name_plural = "Metadata"
         use_sites = False
         # This default class is automatically created when SEO_MODELS is 
         # defined, so we'll take our model list from there.

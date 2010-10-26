@@ -13,73 +13,73 @@ from rollyourown.seo.modelmetadata import get_seo_content_types
 
 # Varients without sites support
 
-class PathMetaDataAdmin(admin.ModelAdmin):
+class PathMetadataAdmin(admin.ModelAdmin):
     list_display = ('_path',)
 
-class ModelInstanceMetaDataAdmin(admin.ModelAdmin):
+class ModelInstanceMetadataAdmin(admin.ModelAdmin):
     list_display = ('_path', '_content_type', '_object_id')
 
-class ModelMetaDataAdmin(admin.ModelAdmin):
+class ModelMetadataAdmin(admin.ModelAdmin):
     list_display = ('_content_type',)
 
-class ViewMetaDataAdmin(admin.ModelAdmin):
+class ViewMetadataAdmin(admin.ModelAdmin):
     list_display = ('_view', )
 
 
 # Varients with sites support
 
-class SitePathMetaDataAdmin(admin.ModelAdmin):
+class SitePathMetadataAdmin(admin.ModelAdmin):
     list_display = ('_path', '_site')
     list_filter = ('_site',)
 
-class SiteModelInstanceMetaDataAdmin(admin.ModelAdmin):
+class SiteModelInstanceMetadataAdmin(admin.ModelAdmin):
     list_display = ('_path', '_content_type', '_object_id', '_site')
     list_filter = ('_site', '_content_type')
 
-class SiteModelMetaDataAdmin(admin.ModelAdmin):
+class SiteModelMetadataAdmin(admin.ModelAdmin):
     list_display = ('_content_type', '_site')
     list_filter = ('_site',)
 
-class SiteViewMetaDataAdmin(admin.ModelAdmin):
+class SiteViewMetadataAdmin(admin.ModelAdmin):
     list_display = ('_view', '_site')
     list_filter = ('_site',)
 
 
-def register_seo_admin(admin_site, meta_data_class):
-    if meta_data_class.use_sites:
-        path_admin = SitePathMetaDataAdmin
-        model_instance_admin = SiteModelInstanceMetaDataAdmin
-        model_admin = SiteModelMetaDataAdmin
-        view_admin = SiteViewMetaDataAdmin
+def register_seo_admin(admin_site, metadata_class):
+    if metadata_class.use_sites:
+        path_admin = SitePathMetadataAdmin
+        model_instance_admin = SiteModelInstanceMetadataAdmin
+        model_admin = SiteModelMetadataAdmin
+        view_admin = SiteViewMetadataAdmin
     else:
-        path_admin = PathMetaDataAdmin
-        model_instance_admin = ModelInstanceMetaDataAdmin
-        model_admin = ModelMetaDataAdmin
-        view_admin = ViewMetaDataAdmin
+        path_admin = PathMetadataAdmin
+        model_instance_admin = ModelInstanceMetadataAdmin
+        model_admin = ModelMetadataAdmin
+        view_admin = ViewMetadataAdmin
 
     class ModelAdmin(model_admin):
-        form = get_model_form(meta_data_class)
+        form = get_model_form(metadata_class)
 
-    admin_site.register(meta_data_class.PathMetaData, path_admin)
-    admin_site.register(meta_data_class.ModelInstanceMetaData, model_instance_admin)
-    admin_site.register(meta_data_class.ModelMetaData, ModelAdmin)
-    admin_site.register(meta_data_class.ViewMetaData, view_admin)
-
-
-def get_inline(meta_data_class):
-    attrs = {'max_num': 1, 'model': meta_data_class.ModelInstanceMetaData}
-    return type('MetaDataInline', (generic.GenericStackedInline,), attrs)
+    admin_site.register(metadata_class.PathMetadata, path_admin)
+    admin_site.register(metadata_class.ModelInstanceMetadata, model_instance_admin)
+    admin_site.register(metadata_class.ModelMetadata, ModelAdmin)
+    admin_site.register(metadata_class.ViewMetadata, view_admin)
 
 
-def get_model_form(meta_data_class):
+def get_inline(metadata_class):
+    attrs = {'max_num': 1, 'model': metadata_class.ModelInstanceMetadata}
+    return type('MetadataInline', (generic.GenericStackedInline,), attrs)
+
+
+def get_model_form(metadata_class):
     # Restrict conetnt type choices to the models set in seo_models
-    seo_models = _get_seo_models(meta_data_class)
+    seo_models = _get_seo_models(metadata_class)
     content_type_choices = [(x._get_pk_val(), smart_unicode(x)) for x in ContentType.objects.filter(id__in=get_seo_content_types(seo_models))]
 
-    class ModelMetaDataForm(forms.ModelForm):
+    class ModelMetadataForm(forms.ModelForm):
         content_type = forms.ChoiceField(choices=content_type_choices)
 
         class Meta:
-            model = meta_data_class.ModelMetaData
+            model = metadata_class.ModelMetadata
 
-    return ModelMetaDataForm
+    return ModelMetadataForm

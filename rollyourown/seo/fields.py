@@ -21,7 +21,7 @@ VALID_INLINE_TAGS = (
 ).split()
 
 
-class MetaDataField(object):
+class MetadataField(object):
     creation_counter = 0
 
     # TODO: verbose_name, max_length
@@ -49,8 +49,8 @@ class MetaDataField(object):
 
 
         # Track creation order for field ordering
-        self.creation_counter = MetaDataField.creation_counter
-        MetaDataField.creation_counter += 1
+        self.creation_counter = MetadataField.creation_counter
+        MetadataField.creation_counter += 1
 
     def contribute_to_class(self, cls, name):
         if not self.name:
@@ -90,7 +90,7 @@ class MetaDataField(object):
         raise NotImplementedError
 
 
-class Tag(MetaDataField):
+class Tag(MetadataField):
     def __init__(self, name=None, head=False, escape_value=True,
                        editable=True, verbose_name=None, valid_tags=None, max_length=511,
                        choices=None, populate_from=NotSet, field=models.CharField, 
@@ -115,7 +115,7 @@ class Tag(MetaDataField):
 
 VALID_META_NAME = re.compile(r"[A-z][A-z0-9_:.-]*$")
 
-class MetaTag(MetaDataField):
+class MetaTag(MetadataField):
     def __init__(self, name=None, head=True, verbose_name=None, editable=True, 
                        populate_from=NotSet, valid_tags=None, max_length=511, choices=None, 
                        field=models.CharField, field_kwargs=None, help_text=None):
@@ -160,7 +160,7 @@ class KeywordTag(MetaTag):
 
 
 # TODO: if max_length is given, use a CharField and pass it through
-class Raw(MetaDataField):
+class Raw(MetadataField):
     def __init__(self, head=True, editable=True, populate_from=NotSet, 
                     verbose_name=None, valid_tags=None, choices=None, field=models.TextField,
                     field_kwargs=None, help_text=None):

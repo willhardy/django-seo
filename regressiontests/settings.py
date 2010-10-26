@@ -111,7 +111,7 @@ INSTALLED_APPS = [
 ]
 
 CACHE_BACKEND = 'dummy://'
-# Enable for testing cache
+# Enable when testing cache
 #CACHE_BACKEND = "locmem://?timeout=30&max_entries=400"
 
 # If south is available, add it
@@ -121,7 +121,6 @@ try:
 except ImportError:
     pass
 
-SEO_META_DATA = 'userapp.seo.Coverage'
 SEO_MODELS = ('userapp',)
 
 COVERAGE_MODULES = ('rollyourown.seo', 'userapp', 'flatpages.FlatPage')
