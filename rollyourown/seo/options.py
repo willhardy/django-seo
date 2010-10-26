@@ -15,6 +15,7 @@ class Options(object):
         self.seo_models = meta.pop('seo_models', [])
         self.verbose_name = meta.pop('verbose_name', None)
         self.verbose_name_plural = meta.pop('verbose_name_plural', None)
+        self.backends = meta.pop('backends', ('path', 'modelinstance', 'model', 'view'))
         self.bulk_help_text = help_text
         self.original_meta = meta
         self.models = SortedDict()
@@ -23,7 +24,10 @@ class Options(object):
         self.metadata = None
 
     def get_model(self, name):
-        return self.models[name]
+        try:
+            return self.models[name]
+        except KeyError:
+            return None
 
     def _update_from_name(self, name):
         self.name = name

@@ -53,7 +53,7 @@ from django.utils.encoding import iri_to_uri
 from rollyourown.seo import get_metadata as seo_get_metadata
 from rollyourown.seo.base import registry
 from userapp.models import Page, Product, Category, NoPath
-from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites, WithCache, WithCacheSites, WithCacheI18n
+from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites, WithCache, WithCacheSites, WithCacheI18n, WithBackends
 
 
 def get_metadata(path):
@@ -584,6 +584,11 @@ class Definition(TestCase):
         + if editable is set to False, no Django model field is created. The value is always from populate_from
         + if choices is given it is passed onto the field, (expanded if just a list of strings)
     """
+
+    def test_backends(self):
+        self.assertEqual(Coverage._meta.models.keys(), ['path', 'modelinstance', 'model', 'view'])
+        self.assertEqual(WithBackends._meta.models.keys(), ['view', 'path'])
+
     def test_help_text_direct(self):
         self.assert_help_text('help_text1', "Some help text 1.")
 
@@ -822,6 +827,7 @@ class Templates(TestCase):
             registry['WithI18n'] = WithI18n
             registry['WithRedirect'] = WithRedirect
             registry['WithRedirectSites'] = WithRedirectSites
+            registry['WithBackends'] = WithBackends
 
 
 class Random(TestCase):

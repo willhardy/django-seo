@@ -8,6 +8,7 @@ from django.contrib.sites.models import Site
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.template import Template, Context
+from django.utils.datastructures import SortedDict
 
 from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
@@ -16,6 +17,7 @@ RESERVED_FIELD_NAMES = ('_metadata', '_path', '_content_type', '_object_id',
                         '_content_object', '_view', '_site', 'objects', 
                         '_resolve_value', '_set_context', 'id', 'pk' )
 
+backend_registry = SortedDict()
 
 class MetadataBaseModel(models.Model):
 
@@ -110,6 +112,12 @@ class MetadataBackend(object):
     name = None
     verbose_name = None
     unique_together = None
+
+    class __metaclass__(type):
+        def __new__(cls, name, bases, attrs):
+            new_class = type.__new__(cls, name, bases, attrs)
+            backend_registry[new_class.name] = new_class
+            return new_class
 
     def get_unique_together(self, options):
         ut = []

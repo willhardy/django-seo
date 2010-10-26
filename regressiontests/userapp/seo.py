@@ -104,3 +104,8 @@ class WithCacheI18n(seo.Metadata):
         use_cache = True
         use_i18n = True
 
+class WithBackends(seo.Metadata):
+    title    = seo.Tag()
+
+    class Meta:
+        backends = ('view', 'path')

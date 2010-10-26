@@ -20,7 +20,7 @@ from django.utils.encoding import iri_to_uri
 from rollyourown.seo.utils import NotSet, Literal
 from rollyourown.seo.options import Options
 from rollyourown.seo.fields import MetadataField, Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathBackend, ViewBackend, ModelInstanceBackend, ModelBackend
+from rollyourown.seo.meta_models import backend_registry
 from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
 
 
@@ -153,7 +153,7 @@ class MetadataBase(type):
     def __new__(cls, name, bases, attrs):
         # TODO: Think of a better test to avoid processing Metadata parent class
         if bases == (object,):
-            return super(MetadataBase, cls).__new__(cls, name, bases, attrs)
+            return type.__new__(cls, name, bases, attrs)
 
         # Save options as a dict for now (we will be editing them)
         # TODO: Is this necessary, should we bother relaying Django Meta options?
@@ -191,7 +191,7 @@ class MetadataBase(type):
 
 
         # Preprocessing complete, here is the new class
-        new_class = super(MetadataBase, cls).__new__(cls, name, bases, attrs)
+        new_class = type.__new__(cls, name, bases, attrs)
 
         options.metadata = new_class
         new_class._meta = options
@@ -200,10 +200,13 @@ class MetadataBase(type):
         options._update_from_name(name)
         options._register_elements(elements)
 
-        new_class._meta._add_backend(PathBackend)
-        new_class._meta._add_backend(ModelInstanceBackend)
-        new_class._meta._add_backend(ModelBackend)
-        new_class._meta._add_backend(ViewBackend)
+        for backend_name in options.backends:
+            new_class._meta._add_backend(backend_registry[backend_name])
+
+        #new_class._meta._add_backend(PathBackend)
+        #new_class._meta._add_backend(ModelInstanceBackend)
+        #new_class._meta._add_backend(ModelBackend)
+        #new_class._meta._add_backend(ViewBackend)
 
         registry[name] = new_class
 
@@ -300,12 +303,14 @@ def _delete_callback(model_class, sender, instance,  **kwargs):
 
 def register_signals():
     for metadata_class in registry.values():
-        update_callback = curry(_update_callback, model_class=metadata_class._meta.get_model('modelinstance'))
-        delete_callback = curry(_delete_callback, model_class=metadata_class._meta.get_model('modelinstance'))
+        model_instance = metadata_class._meta.get_model('modelinstance')
+        if model_instance is not None:
+            update_callback = curry(_update_callback, model_class=model_instance)
+            delete_callback = curry(_delete_callback, model_class=model_instance)
 
-        ## Connect the models listed in settings to the update callback.
-        for model in _get_seo_models(metadata_class):
-            models.signals.post_save.connect(update_callback, sender=model, weak=False)
-            models.signals.pre_delete.connect(delete_callback, sender=model, weak=False)
+            ## Connect the models listed in settings to the update callback.
+            for model in _get_seo_models(metadata_class):
+                models.signals.post_save.connect(update_callback, sender=model, weak=False)
+                models.signals.pre_delete.connect(delete_callback, sender=model, weak=False)
 
 
