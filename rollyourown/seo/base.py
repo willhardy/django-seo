@@ -200,8 +200,13 @@ class MetadataBase(type):
         options._update_from_name(name)
         options._register_elements(elements)
 
-        for backend_name in options.backends:
-            new_class._meta._add_backend(backend_registry[backend_name])
+        try:
+            for backend_name in options.backends:
+                new_class._meta._add_backend(backend_registry[backend_name])
+            for backend_name in options.backends:
+                backend_registry[backend_name].validate(options)
+        except KeyError:
+            raise Exception('Metadata backend "%s" is not installed.' % backend_name)
 
         #new_class._meta._add_backend(PathBackend)
         #new_class._meta._add_backend(ModelInstanceBackend)

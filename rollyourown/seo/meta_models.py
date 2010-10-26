@@ -147,6 +147,12 @@ class MetadataBackend(object):
         return _Manager
 
 
+    @staticmethod
+    def validate(options):
+        """ Validates the application of this backend to a given metadata 
+        """
+
+
 class PathBackend(MetadataBackend):
     name = "path"
     verbose_name = "Path"
@@ -288,6 +294,16 @@ class ModelBackend(MetadataBackend):
                 abstract = True
                 unique_together = self.get_unique_together(options)
         return ModelMetadataBase
+
+    @staticmethod
+    def validate(options):
+        """ Validates the application of this backend to a given metadata 
+        """
+        try:
+            if options.backends.index('modelinstance') > options.backends.index('model'):
+                raise Exception("Metadata backend 'modelinstance' must come before 'model' backend")
+        except ValueError:
+            raise Exception("Metadata backend 'modelinstance' must be installed in order to use 'model' backend")
 
 
 
