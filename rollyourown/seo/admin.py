@@ -46,7 +46,7 @@ class SiteViewMetadataAdmin(admin.ModelAdmin):
 
 
 def register_seo_admin(admin_site, metadata_class):
-    if metadata_class.use_sites:
+    if metadata_class._meta.use_sites:
         path_admin = SitePathMetadataAdmin
         model_instance_admin = SiteModelInstanceMetadataAdmin
         model_admin = SiteModelMetadataAdmin
@@ -60,14 +60,14 @@ def register_seo_admin(admin_site, metadata_class):
     class ModelAdmin(model_admin):
         form = get_model_form(metadata_class)
 
-    admin_site.register(metadata_class.PathMetadata, path_admin)
-    admin_site.register(metadata_class.ModelInstanceMetadata, model_instance_admin)
-    admin_site.register(metadata_class.ModelMetadata, ModelAdmin)
-    admin_site.register(metadata_class.ViewMetadata, view_admin)
+    admin_site.register(metadata_class._meta.get_model('path'), path_admin)
+    admin_site.register(metadata_class._meta.get_model('modelinstance'), model_instance_admin)
+    admin_site.register(metadata_class._meta.get_model('model'), ModelAdmin)
+    admin_site.register(metadata_class._meta.get_model('view'), view_admin)
 
 
 def get_inline(metadata_class):
-    attrs = {'max_num': 1, 'model': metadata_class.ModelInstanceMetadata}
+    attrs = {'max_num': 1, 'model': metadata_class._meta.get_model('modelinstance')}
     return type('MetadataInline', (generic.GenericStackedInline,), attrs)
 
 
@@ -80,6 +80,6 @@ def get_model_form(metadata_class):
         content_type = forms.ChoiceField(choices=content_type_choices)
 
         class Meta:
-            model = metadata_class.ModelMetadata
+            model = metadata_class._meta.get_model('model')
 
     return ModelMetadataForm

@@ -69,26 +69,26 @@ class DataSelection(TestCase):
         self.product = Product.objects.create()
         self.product_content_type = ContentType.objects.get_for_model(Product)
         # NB if signals aren't working, the following will fail.
-        self.product_metadata = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.product_content_type, _object_id=self.product.id)
+        self.product_metadata = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.product_content_type, _object_id=self.product.id)
         self.product_metadata.title="ModelInstance title"
         self.product_metadata.keywords="ModelInstance keywords"
         self.product_metadata.save()
 
         self.page = Page.objects.create(title=u"Page Title", type="abc")
         self.page_content_type = ContentType.objects.get_for_model(Page)
-        self.page_metadata = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page.id)
+        self.page_metadata = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page.id)
         self.page_metadata.title="Page title"
         self.page_metadata.keywords="Page keywords"
         self.page_metadata.save()
 
         # Model metadata
-        self.model_metadata = Coverage.ModelMetadata.objects.create(_content_type=self.product_content_type, title="Model title", keywords="Model keywords")
+        self.model_metadata = Coverage._meta.get_model('model').objects.create(_content_type=self.product_content_type, title="Model title", keywords="Model keywords")
 
         # Path metadata
-        self.path_metadata = Coverage.PathMetadata.objects.create(_path="/path/", title="Path title", keywords="Path keywords")
+        self.path_metadata = Coverage._meta.get_model('path').objects.create(_path="/path/", title="Path title", keywords="Path keywords")
 
         # View metadata
-        self.view_metadata = Coverage.ViewMetadata.objects.create(_view="userapp_my_view", title="View title", keywords="View keywords")
+        self.view_metadata = Coverage._meta.get_model('view').objects.create(_view="userapp_my_view", title="View title", keywords="View keywords")
 
     def test_path(self):
         """ Checks that a direct path listing is always found first. """
@@ -106,14 +106,14 @@ class DataSelection(TestCase):
         self.assertEqual(get_metadata(path).title.value, "example.com")
 
         # Check that a new metadata instance is created
-        old_count = Coverage.ModelInstanceMetadata.objects.all().count()
+        old_count = Coverage._meta.get_model('modelinstance').objects.all().count()
         page.save()
-        new_count = Coverage.ModelInstanceMetadata.objects.all().count()
+        new_count = Coverage._meta.get_model('modelinstance').objects.all().count()
         self.assertEqual(new_count, old_count+1)
 
         # Check that the correct data is loaded
         assert 'New Page title' not in unicode(get_metadata(path).title)
-        Coverage.ModelInstanceMetadata.objects.filter(_content_type=self.page_content_type, _object_id=page.id).update(title="New Page title")
+        Coverage._meta.get_model('modelinstance').objects.filter(_content_type=self.page_content_type, _object_id=page.id).update(title="New Page title")
         self.assertEqual(get_metadata(path).title.value, 'New Page title')
 
     def test_model(self):
@@ -131,7 +131,7 @@ class DataSelection(TestCase):
 
     def test_view(self):
         path = '/my/view/text/'
-        path_metadata = Coverage.PathMetadata.objects.create(_path=path, title="Path title")
+        path_metadata = Coverage._meta.get_model('path').objects.create(_path=path, title="Path title")
         self.assertEqual(get_metadata(path).title.value, 'Path title')
         path_metadata.delete()
         self.assertEqual(get_metadata(path).title.value, 'View title')
@@ -142,7 +142,7 @@ class DataSelection(TestCase):
         """
         path = "/abc/"
         site = Site.objects.get_current()
-        path_metadata = WithSites.PathMetadata.objects.create(_site=site, title="Site Path title", _path=path)
+        path_metadata = WithSites._meta.get_model('path').objects.create(_site=site, title="Site Path title", _path=path)
         self.assertEqual(seo_get_metadata(path, name="WithSites").title.value, 'Site Path title')
         # Metadata with site=null should work
         path_metadata._site_id = None
@@ -158,7 +158,7 @@ class DataSelection(TestCase):
         """
         path = "/abc/"
         language = 'de'
-        path_metadata = WithI18n.PathMetadata.objects.create(_language='de', title="German Path title", _path=path)
+        path_metadata = WithI18n._meta.get_model('path').objects.create(_language='de', title="German Path title", _path=path)
         self.assertEqual(seo_get_metadata(path, name="WithI18n", language="de").title.value, 'German Path title')
         # Metadata with an explicitly wrong site should not work
         path_metadata._language = "en"
@@ -176,7 +176,7 @@ class DataSelection(TestCase):
 #        # Check that the redirect doesn't already exist
 #        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path).count(), 0)
 #
-#        path_metadata = WithRedirect.PathMetadata.objects.create(title="A Path title", _path=old_path)
+#        path_metadata = WithRedirect._meta.get_model('path').objects.create(title="A Path title", _path=old_path)
 #        self.assertEqual(seo_get_metadata(old_path, name="WithRedirect").title.value, 'A Path title')
 #
 #        # Rename the path
@@ -198,7 +198,7 @@ class DataSelection(TestCase):
 #        # Check that the redirect doesn't already exist
 #        self.assertEqual(Redirect.objects.filter(old_path=old_path, new_path=new_path, site=site).count(), 0)
 #
-#        path_metadata = WithRedirectSites.PathMetadata.objects.create(title="A Path title", _path=old_path, _site=site)
+#        path_metadata = WithRedirectSites._meta.get_model('path').objects.create(title="A Path title", _path=old_path, _site=site)
 #        self.assertEqual(seo_get_metadata(old_path, name="WithRedirectSites").title.value, 'A Path title')
 #
 #        # Rename the path
@@ -227,14 +227,14 @@ class DataSelection(TestCase):
 
         # Create a new product that will take the same path
         new_product = Product.objects.create()
-        Coverage.ModelInstanceMetadata.objects.filter(_content_type=self.product_content_type, _object_id=new_product.id).update(title="New Title")
+        Coverage._meta.get_model('modelinstance').objects.filter(_content_type=self.product_content_type, _object_id=new_product.id).update(title="New Title")
 
         # This test will not work if we have the id wrong
         if new_product.id != 2:
             raise Exception("Test Error: the product ID is not as expected, this test cannot work.")
 
         # Check that the existing path was corrected
-        product_metadata = Coverage.ModelInstanceMetadata.objects.get(id=self.product_metadata.id)
+        product_metadata = Coverage._meta.get_model('modelinstance').objects.get(id=self.product_metadata.id)
         self.assertEqual(old_path, product_metadata._path)
 
         # Check the new data is available under the correct path
@@ -259,10 +259,10 @@ class DataSelection(TestCase):
             self.page_metadata.delete()
             self.page.title = "A New Page Title"
             self.page.save()
-            Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page.id).delete()
+            Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page.id).delete()
             self.page.type = "a-new-type"
             self.page.save()
-            Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page.id).delete()
+            Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page.id).delete()
             self.page.delete()
         except Exception, e:
             self.fail("Exception raised inappropriately: %r" % e)
@@ -271,19 +271,19 @@ class DataSelection(TestCase):
         """ Check the ability to change the path of metadata. """
         self.page.type = "new-type"
         self.page.save()
-        metadata_1 = Coverage.ModelInstanceMetadata.objects.get(_path=self.page.get_absolute_url())
-        metadata_2 = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page.id)
+        metadata_1 = Coverage._meta.get_model('modelinstance').objects.get(_path=self.page.get_absolute_url())
+        metadata_2 = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page.id)
         self.assertEqual(metadata_1.id, metadata_2.id)
 
         self.assertEqual(get_metadata(path=self.page.get_absolute_url()).title.value, 'Page title')
 
     def test_delete_object(self):
         """ Tests that an object can be deleted, and the metadata is deleted with it. """
-        num_metadata = Coverage.ModelInstanceMetadata.objects.all().count()
+        num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
         old_path = self.page.get_absolute_url()
         self.page.delete()
-        self.assertEqual(Coverage.ModelInstanceMetadata.objects.all().count(), num_metadata - 1)
-        self.assertEqual(Coverage.ModelInstanceMetadata.objects.filter(_path=old_path).count(), 0)
+        self.assertEqual(Coverage._meta.get_model('modelinstance').objects.all().count(), num_metadata - 1)
+        self.assertEqual(Coverage._meta.get_model('modelinstance').objects.filter(_path=old_path).count(), 0)
 
     def test_group(self):
         """ Checks that groups can be accessed directly. """
@@ -321,12 +321,12 @@ class ValueResolution(TestCase):
 
         self.page_content_type = ContentType.objects.get_for_model(Page)
 
-        self.metadata1 = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page1.id)
+        self.metadata1 = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page1.id)
         self.metadata1.keywords = "MD Keywords"
         self.metadata1.save()
-        self.metadata2 = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page2.id)
+        self.metadata2 = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page2.id)
 
-        self.model_metadata = Coverage.ModelMetadata(_content_type=self.page_content_type)
+        self.model_metadata = Coverage._meta.get_model('model')(_content_type=self.page_content_type)
         self.model_metadata.title = u"MMD { Title"
         self.model_metadata.keywords = u"MMD Keywords, {{ page.type }}, more keywords"
         self.model_metadata.description = u"MMD Description for {{ page }} and {{ page }}"
@@ -335,7 +335,7 @@ class ValueResolution(TestCase):
         self.context1 = get_metadata(path=self.page1.get_absolute_url())
         self.context2 = get_metadata(path=self.page2.get_absolute_url())
 
-        self.view_metadata = Coverage.ViewMetadata.objects.create(_view="userapp_my_view")
+        self.view_metadata = Coverage._meta.get_model('view').objects.create(_view="userapp_my_view")
         self.view_metadata.title = "MD {{ text }} Title"
         self.view_metadata.keywords = "MD {{ text }} Keywords"
         self.view_metadata.description = "MD {{ text }} Description"
@@ -368,10 +368,10 @@ class ValueResolution(TestCase):
         path = self.page1.get_absolute_url()
         # Collect instances from all four metadata model for the same path
         # Each will have a title (ie field with populate_from) and a heading (ie field without populate_from)
-        path_md = Coverage.PathMetadata.objects.create(_path=path, title='path title', heading="path heading")
+        path_md = Coverage._meta.get_model('path').objects.create(_path=path, title='path title', heading="path heading")
         modelinstance_md = self.metadata1
         model_md = self.model_metadata
-        view_md = Coverage.ViewMetadata.objects.create(_view='userapp_page_detail', title='view title', heading="view heading")
+        view_md = Coverage._meta.get_model('view').objects.create(_view='userapp_page_detail', title='view title', heading="view heading")
         # Correct some values
         modelinstance_md.title = "model instance title"
         modelinstance_md.heading = "model instance heading"
@@ -450,7 +450,7 @@ class Formatting(TestCase):
     """ Formatting (unit tests)
     """
     def setUp(self):
-        self.path_metadata = Coverage.PathMetadata(
+        self.path_metadata = Coverage._meta.get_model('path')(
                 _path        = "/",
                 title       = "The <strong>Title</strong>",
                 heading     = "The <em>Heading</em>",
@@ -602,28 +602,28 @@ class Definition(TestCase):
         self.assert_help_text('populate_from3', "If empty, \"efg\" will be used.")
 
     def assert_help_text(self, name, text):
-        self.assertEqual(Coverage.PathMetadata._meta.get_field(name).help_text, text)
-        self.assertEqual(Coverage.ModelInstanceMetadata._meta.get_field(name).help_text, text)
-        self.assertEqual(Coverage.ModelMetadata._meta.get_field(name).help_text, text)
-        self.assertEqual(Coverage.ViewMetadata._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage._meta.get_model('path')._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage._meta.get_model('modelinstance')._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage._meta.get_model('model')._meta.get_field(name).help_text, text)
+        self.assertEqual(Coverage._meta.get_model('view')._meta.get_field(name).help_text, text)
 
     def test_uniqueness(self):
         # Check a path for uniqueness
-        Coverage.PathMetadata.objects.create(_path="/unique/")
+        Coverage._meta.get_model('path').objects.create(_path="/unique/")
         try:
-            Coverage.PathMetadata.objects.create(_path="/unique/")
+            Coverage._meta.get_model('path').objects.create(_path="/unique/")
             self.fail("Exception not raised when duplicate path created")
         except IntegrityError:
             pass
 
         # Check that uniqueness handles sites correctly
         current_site = Site.objects.get_current()
-        WithSites.PathMetadata.objects.create(_site=current_site, _path="/unique/")
-        pmd = WithSites.PathMetadata.objects.create(_site=None, _path="/unique/")
+        WithSites._meta.get_model('path').objects.create(_site=current_site, _path="/unique/")
+        pmd = WithSites._meta.get_model('path').objects.create(_site=None, _path="/unique/")
         pmd._site_id = current_site.id + 1
         pmd.save()
         try:
-            WithSites.PathMetadata.objects.create(_site=current_site, _path="/unique/")
+            WithSites._meta.get_model('path').objects.create(_site=current_site, _path="/unique/")
             self.fail("Exception not raised when duplicate path/site combination created")
         except IntegrityError:
             pass
@@ -645,13 +645,13 @@ class MetaOptions(TestCase):
     def test_seo_views(self):
         """ Checks that the choices for a _view field is limited to the views in Meta.seo_views 
         """
-        choices = Coverage.ViewMetadata._meta.get_field('_view').choices
+        choices = Coverage._meta.get_model('view')._meta.get_field('_view').choices
         self.assertEqual(len(choices), 4)
 
     def test_seo_models(self):
         """ Checks that the choices for a _content_type field is limited to the models in Meta.seo_models 
         """
-        choices = Coverage.ModelMetadata._meta.get_field('_content_type').choices
+        choices = Coverage._meta.get_model('model')._meta.get_field('_content_type').choices
         self.assertEqual(len(choices), 4)
 
     def test_use_cache(self):
@@ -708,7 +708,7 @@ class Templates(TestCase):
     """
     def setUp(self):
         self.path = "/abc/"
-        Coverage.PathMetadata.objects.create(_path=self.path, title="A Title", description="A Description", raw1="Some raw text")
+        Coverage._meta.get_model('path').objects.create(_path=self.path, title="A Title", description="A Description", raw1="Some raw text")
         self.metadata = get_metadata(path=self.path)
         self.context = {}
 
@@ -782,14 +782,14 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata as var %}{{ var.raw1.field.name }}", "raw1")
 
     def test_language(self):
-        WithI18n.PathMetadata.objects.create(_path=self.path, title="A Title", _language="de")
+        WithI18n._meta.get_model('path').objects.create(_path=self.path, title="A Title", _language="de")
         metadata = seo_get_metadata(path=self.path, name="WithSites", language="de")
         self.compilesTo('{% get_metadata WithI18n in "de" %}', unicode(metadata))
         self.compilesTo('{% get_metadata WithI18n in "en" %}', "")
 
     def test_site(self):
         new_site = Site.objects.create(domain="new-example.com", name="New example")
-        WithSites.PathMetadata.objects.create(_path=self.path, title="A Title", _site=new_site)
+        WithSites._meta.get_model('path').objects.create(_path=self.path, title="A Title", _site=new_site)
         metadata = seo_get_metadata(path=self.path, name="WithSites", site=new_site)
         self.compilesTo('{% get_metadata WithI18n on "new-example.com" %}', unicode(metadata))
         self.compilesTo('{% get_metadata WithI18n in "example.com" %}', "")
@@ -834,7 +834,7 @@ class Random(TestCase):
     def setUp(self):
         self.page = Page.objects.create(type="abc")
         self.content_type = ContentType.objects.get_for_model(Page)
-        self.model_metadata = Coverage.ModelInstanceMetadata.objects.get(_content_type=self.content_type,
+        self.model_metadata = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.content_type,
                                                     _object_id=self.page.id)
         self.context = get_metadata(path=self.model_metadata._path)
 
@@ -848,12 +848,12 @@ class Random(TestCase):
 
     def test_missing_path(self):
         " Checks that a model with a missing path is gracefully ignored. "
-        num_metadata = Coverage.ModelInstanceMetadata.objects.all().count()
+        num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
         try:
             no_path = NoPath.objects.create()
         except Exception, e:
             self.fail("Exception inappropriately raised: %r" % e)
-        new_num_metadata = Coverage.ModelInstanceMetadata.objects.all().count()
+        new_num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
         self.assertEqual(num_metadata, new_num_metadata)
 
 

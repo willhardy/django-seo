@@ -29,12 +29,12 @@ class MetadataBaseModel(models.Model):
         # TODO Rename to __metadata
         self._metadata = self.__class__._metadata()
 
-    # TODO Rename to __resolve_value
+    # TODO Rename to __resolve_value?
     def _resolve_value(self, name):
         """ Returns an appropriate value for the given name. """
         name = str(name)
-        if name in self._metadata.elements:
-            element = self._metadata.elements[name]
+        if name in self._metadata._meta.elements:
+            element = self._metadata._meta.elements[name]
 
             # Look in instances for an explicit value
             if element.editable:
@@ -86,9 +86,29 @@ class BaseManager(models.Manager):
             queryset = queryset.filter(_language=language)
         return queryset
 
+# Following is part of an incomplete move to define backends, which will:
+#   -  contain the business logic of backends to a short, succinct module
+#   -  allow individual backends to be turned on and off
+#   -  allow new backends to be added by end developers
+#
+# A Backend:
+#   -  defines an abstract base class for storing the information required to associate metadata with its target (ie a view, a path, a model instance etc)
+#   -  defines a method for retrieving an instance
+#
+# This is not particularly easy.
+#   -  unique_together fields need to be defined in the same django model, as some django versions don't enforce the uniqueness when it spans subclasses
+#   -  most backends use the path to find a matching instance. The model backend however ideally needs a content_type (found from a model instance backend, which used the path)
+#   -  catering for all the possible options (use_sites, use_languages), needs to be done succiently, and at compile time
+#
+# This means that:
+#   -  all fields that share uniqueness (backend fields, _site, _language) need to be defined in the same model
+#   -  as backends should have full control over the model, therefore every backend needs to define the compulsory fields themselves (eg _site and _language).
+#      There is no way to add future compulsory fields to all backends without editing each backend individually. 
+#      This is probably going to have to be a limitataion we need to live with.
 
-class MetadataPlugin(object):
+class MetadataBackend(object):
     name = None
+    verbose_name = None
     unique_together = None
 
     def get_unique_together(self, options):
@@ -103,12 +123,12 @@ class MetadataPlugin(object):
         return tuple(ut)
 
     def get_manager(self, options):
-        _get_from_path = self.get_from_path
+        _get_instances = self.get_instances
 
         class _Manager(BaseManager):
-            def get_from_path(self, path, site=None, language=None):
+            def get_instances(self, path, site=None, language=None, context=None):
                 queryset = self.for_site_and_language(site, language)
-                return _get_from_path(queryset, path)
+                return _get_instances(queryset, path, context)
 
             if not options.use_sites:
                 def for_site_and_language(self, site=None, language=None):
@@ -119,12 +139,13 @@ class MetadataPlugin(object):
         return _Manager
 
 
-class PathMetadataPlugin(MetadataPlugin):
-
+class PathBackend(MetadataBackend):
+    name = "path"
+    verbose_name = "Path"
     unique_together = (("_path",),)
 
-    def get_from_path(self, queryset, path):
-        return queryset.get(_path=path)
+    def get_instances(self, queryset, path, context):
+        return queryset.filter(_path=path)
 
     def get_model(self, options):
         class PathMetadataBase(MetadataBaseModel):
@@ -137,7 +158,7 @@ class PathMetadataPlugin(MetadataPlugin):
 
             def __unicode__(self):
                 return self._path
-    
+
             class Meta:
                 abstract = True
                 unique_together = self.get_unique_together(options)
@@ -145,15 +166,15 @@ class PathMetadataPlugin(MetadataPlugin):
         return PathMetadataBase
 
 
-class ViewMetadataPlugin(MetadataPlugin):
-
+class ViewBackend(MetadataBackend):
+    name = "view"
+    verbose_name = "View"
     unique_together = (("_view",),)
 
-    def get_from_path(self, queryset, path):
+    def get_instances(self, queryset, path, context):
         view_name = resolve_to_name(path)
         if view_name is not None:
-            return queryset.get(_view=view_name)
-        raise queryset.model.DoesNotExist()
+            return queryset.filter(_view=view_name)
 
     def get_model(self, options):
         class ViewMetadataBase(MetadataBaseModel):
@@ -164,13 +185,17 @@ class ViewMetadataPlugin(MetadataPlugin):
                 _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
             objects = self.get_manager(options)()
 
-            def _set_context(self, context):
+            def _process_context(self, context):
                 """ Use the context when rendering any substitutions.  """
-                self.__context = context
+                if 'view_context' in context:
+                    self.__context = context['view_context']
         
             def _resolve_value(self, name):
                 value = super(ViewMetadataBase, self)._resolve_value(name)
-                return _resolve(value, context=self.__context)
+                try:
+                    return _resolve(value, context=self.__context)
+                except AttributeError:
+                    return value
 
             def __unicode__(self):
                 return self._view
@@ -182,13 +207,13 @@ class ViewMetadataPlugin(MetadataPlugin):
         return ViewMetadataBase
 
 
-class ModelInstanceMetadataPlugin(MetadataPlugin):
-
+class ModelInstanceBackend(MetadataBackend):
     name = "modelinstance"
+    verbose_name = "Model Instance"
     unique_together = (("_path",), ("_content_type", "_object_id"))
 
-    def get_from_path(self, queryset, path):
-        return queryset.get(_path=path)
+    def get_instances(self, queryset, path, context):
+        return queryset.filter(_path=path)
 
     def get_model(self, options):
         class ModelInstanceMetadataBase(MetadataBaseModel):
@@ -209,16 +234,21 @@ class ModelInstanceMetadataPlugin(MetadataPlugin):
                 unique_together = self.get_unique_together(options)
                 abstract = True
 
+            def _process_context(self, context):
+                context['content_type'] = self._content_type
+                context['model_instance'] = self
+
         return ModelInstanceMetadataBase
 
 
-class ModelMetadataPlugin(MetadataPlugin):
-
+class ModelBackend(MetadataBackend):
     name = "model"
+    verbose_name = "Model"
     unique_together = (("_content_type",),)
 
-    def get_from_path(self, queryset, path):
-        return queryset.get(_content_type=path)
+    def get_instances(self, queryset, path, context):
+        if context and 'content_type' in context:
+            return queryset.filter(_content_type=context['content_type'])
 
     def get_model(self, options):
         class ModelMetadataBase(MetadataBaseModel):
@@ -232,15 +262,19 @@ class ModelMetadataPlugin(MetadataPlugin):
             def __unicode__(self):
                 return unicode(self._content_type)
 
-            def _set_context(self, instance):
+            def _process_context(self, context):
                 """ Use the given model instance as context for rendering 
                     any substitutions. 
                 """
-                self.__instance = instance
+                if 'model_instance' in context:
+                    self.__instance = context['model_instance']
         
             def _resolve_value(self, name):
                 value = super(ModelMetadataBase, self)._resolve_value(name)
-                return _resolve(value, self.__instance)
+                try:
+                    return _resolve(value, self.__instance._content_object)
+                except AttributeError:
+                    return value
         
             class Meta:
                 abstract = True

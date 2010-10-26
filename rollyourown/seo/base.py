@@ -20,7 +20,7 @@ from django.utils.encoding import iri_to_uri
 from rollyourown.seo.utils import NotSet, Literal
 from rollyourown.seo.options import Options
 from rollyourown.seo.fields import MetadataField, Tag, MetaTag, KeywordTag, Raw
-from rollyourown.seo.meta_models import PathMetadataPlugin, ViewMetadataPlugin, ModelInstanceMetadataPlugin, ModelMetadataPlugin
+from rollyourown.seo.meta_models import PathBackend, ViewBackend, ModelInstanceBackend, ModelBackend
 from rollyourown.seo.meta_models import RESERVED_FIELD_NAMES, _get_seo_models
 
 
@@ -70,8 +70,8 @@ class FormattedMetadata(object):
 
         # Otherwise, return an appropriate default value (populate_from)
         # TODO: This is duplicated in meta_models. Move this to a common home.
-        if name in self.__metadata.elements:
-            populate_from = self.__metadata.elements[name].populate_from
+        if name in self.__metadata._meta.elements:
+            populate_from = self.__metadata._meta.elements[name].populate_from
             if callable(populate_from):
                 # Instance methods have a 'self' under im_self
                 if getattr(populate_from, 'im_self', None):
@@ -96,16 +96,16 @@ class FormattedMetadata(object):
         if name in self.__metadata._meta.groups:
             if value is not None:
                 return value or None
-            value = '\n'.join(unicode(BoundMetadataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
+            value = '\n'.join(unicode(BoundMetadataField(self.__metadata._meta.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
 
         # Look for an element called "name"
-        elif name in self.__metadata.elements:
+        elif name in self.__metadata._meta.elements:
             if value is not None:
-                return BoundMetadataField(self.__metadata.elements[name], value or None)
+                return BoundMetadataField(self.__metadata._meta.elements[name], value or None)
             value = self._resolve_value(name)
             if cache_key is not None:
                 cache.set(cache_key, value or '')
-            return BoundMetadataField(self.__metadata.elements[name], value)
+            return BoundMetadataField(self.__metadata._meta.elements[name], value)
         else:
             raise AttributeError
 
@@ -122,7 +122,7 @@ class FormattedMetadata(object):
             value = None
 
         if value is None:
-            value = mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata.elements.items() if e.head))
+            value = mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata._meta.elements.items() if e.head))
             if self.__cache_prefix is not None:
                 cache.set(self.__cache_prefix, value or '')
 
@@ -163,10 +163,12 @@ class MetadataBase(type):
 
         # Remove our options from Meta, so Django won't complain
         help_text = attrs.pop('HelpText', {})
+
+        # TODO: Is this necessary
         if help_text:
             help_text = help_text.__dict__.copy()
 
-        options = Options(Meta)
+        options = Options(Meta, help_text)
 
         # Collect and sort our elements
         elements = [(key, attrs.pop(key)) for key, obj in attrs.items() 
@@ -191,62 +193,17 @@ class MetadataBase(type):
         # Preprocessing complete, here is the new class
         new_class = super(MetadataBase, cls).__new__(cls, name, bases, attrs)
 
-        # Some useful attributes
-        options.update_from_name(name)
+        options.metadata = new_class
         new_class._meta = options
 
-        # TODO: Remove these, they are now acessible under _meta
-        new_class.seo_models = options.seo_models
-        new_class.elements = elements
-        new_class.groups = options.groups
-        new_class.use_sites = options.use_sites
-        new_class.verbose_name = options.verbose_name
-        new_class.verbose_name_plural = options.verbose_name_plural
+        # Some useful attributes
+        options._update_from_name(name)
+        options._register_elements(elements)
 
-        for key, obj in elements.items():
-            obj.contribute_to_class(new_class, key)
-
-        # Create the Django Models
-        # An abstract base and three real models are created using the fields
-        # defined above and additional field for attaching metadata to the 
-        # relevant path, model or view
-
-        # Create the common Django fields
-        fields = {}
-        for key, obj in elements.items():
-            if obj.editable:
-                field = obj.get_field()
-                if not field.help_text:
-                    if key in help_text:
-                        field.help_text = help_text[key]
-                fields[key] = field
-
-        # 0. Abstract base model with common fields
-        base_meta = type('Meta', (), Meta)
-        class BaseMeta(base_meta):
-            abstract = True
-            app_label = 'seo'
-        fields['Meta'] = BaseMeta
-        fields['__module__'] = attrs['__module__']
-        MetadataBaseModel = type('%sBase' % name, (models.Model,), fields)
-
-        # Function to build our subclasses for us
-        def create_new_class(md_type, base):
-            # TODO: Rename this field
-            new_md_attrs = {'_metadata': new_class, '__module__': __name__ }
-
-            new_md_meta = {}
-            new_md_meta['verbose_name'] = '%s (%s)' % (new_class._meta.verbose_name, md_type)
-            new_md_meta['verbose_name_plural'] = '%s (%s)' % (new_class._meta.verbose_name_plural, md_type)
-            new_md_meta['unique_together'] = base._meta.unique_together
-            new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
-            return type("%s%s"%(name,"".join(md_type.split())), (base, MetadataBaseModel), new_md_attrs.copy())
-
-        # TODO: Move these names out of the way (subclasses will want to define their own attributes)
-        new_class.PathMetadata = create_new_class('Path', PathMetadataPlugin().get_model(options))
-        new_class.ViewMetadata = create_new_class('View', ViewMetadataPlugin().get_model(options))
-        new_class.ModelInstanceMetadata = create_new_class('Model Instance', ModelInstanceMetadataPlugin().get_model(options))
-        new_class.ModelMetadata = create_new_class('Model', ModelMetadataPlugin().get_model(options))
+        new_class._meta._add_backend(PathBackend)
+        new_class._meta._add_backend(ModelInstanceBackend)
+        new_class._meta._add_backend(ModelBackend)
+        new_class._meta._add_backend(ViewBackend)
 
         registry[name] = new_class
 
@@ -262,34 +219,20 @@ class MetadataBase(type):
     # TODO: Move this function out of the way (subclasses will want to define their own attributes)
     def _get_instances(cls, path, context=None, site=None, language=None):
         """ A sequence of instances to discover metadata. 
-            Each of the four metadata types are looked up when possible/necessary
+            Each instance from each backend is looked up when possible/necessary.
+            This is a generator to eliminate unnecessary queries.
         """
-        try:
-            yield cls.PathMetadata.objects.get_from_path(path, site, language)
-        except cls.PathMetadata.DoesNotExist:
-            pass
+        backend_context = {'view_context': context }
 
-        try:
-            i = cls.ModelInstanceMetadata.objects.get_from_path(path, site, language)
-            yield i
-            i2 = cls.ModelMetadata.objects.get_from_path(i._content_type, site, language)
-            i2._set_context(i._content_object)
-            yield i2
-        except (cls.ModelInstanceMetadata.DoesNotExist, cls.ModelMetadata.DoesNotExist):
-            pass
-
-        try:
-            i3 = cls.ViewMetadata.objects.get_from_path(path, site, language)
-            i3._set_context(context)
-            yield i3
-        except cls.ViewMetadata.DoesNotExist:
-            pass
-
+        for model in cls._meta.models.values():
+            for instance in model.objects.get_instances(path, site, language, backend_context) or []:
+                if hasattr(instance, '_process_context'):
+                    instance._process_context(backend_context)
+                yield instance
 
 
 class Metadata(object):
     __metaclass__ = MetadataBase
-
 
 
 def get_metadata(path, name=None, context=None, site=None, language=None):
@@ -303,7 +246,6 @@ def get_metadata(path, name=None, context=None, site=None, language=None):
         assert len(registry) == 1, "You must have exactly one Metadata class, if using get_metadata() without a 'name' parameter."
         metadata = registry.values()[0]
     return metadata._get_formatted_data(path, context, site, language)
-
 
 
 def _update_callback(model_class, sender, instance, created, **kwargs):
@@ -325,19 +267,21 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
     except AttributeError:
         return
 
-    try:
-        # Look for an existing object with this path
-        metadata = model_class.objects.get_from_path(path)
+    # Look for an existing object with this path
+    language = getattr(instance, '_language', None)
+    site = getattr(instance, '_site', None)
+    for md in model_class.objects.get_instances(path, site, language):
         # If another object has the same path, remove the path.
         # It's harsh, but we need a unique path and will assume the other
         # link is outdated.
-        if metadata._content_type != content_type or metadata._object_id != instance.pk:
-            metadata._path = metadata._content_object.get_absolute_url()
-            metadata.save()
+        if md._content_type != content_type or md._object_id != instance.pk:
+            md._path = md._content_object.get_absolute_url()
+            md.save()
             # Move on, this metadata instance isn't for us
-            metadata = None
-    except model_class.DoesNotExist:
-        pass
+            md = None
+        else:
+            # This is our instance!
+            metadata = md
     
     # If the path-based search didn't work, look for (or create) an existing
     # instance linked to this object.
@@ -348,18 +292,16 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
     
     # XXX Update the Metadata instance with data from the object
     
+
 def _delete_callback(model_class, sender, instance,  **kwargs):
     content_type = ContentType.objects.get_for_model(instance)
-    try:
-        model_class.objects.get(_content_type=content_type, _object_id=instance.pk).delete()
-    except:
-        pass
+    model_class.objects.filter(_content_type=content_type, _object_id=instance.pk).delete()
 
 
 def register_signals():
     for metadata_class in registry.values():
-        update_callback = curry(_update_callback, model_class=metadata_class.ModelInstanceMetadata)
-        delete_callback = curry(_delete_callback, model_class=metadata_class.ModelInstanceMetadata)
+        update_callback = curry(_update_callback, model_class=metadata_class._meta.get_model('modelinstance'))
+        delete_callback = curry(_delete_callback, model_class=metadata_class._meta.get_model('modelinstance'))
 
         ## Connect the models listed in settings to the update callback.
         for model in _get_seo_models(metadata_class):

@@ -24,7 +24,6 @@ VALID_INLINE_TAGS = (
 class MetadataField(object):
     creation_counter = 0
 
-    # TODO: verbose_name, max_length
     def __init__(self, name, head, editable, populate_from, valid_tags, choices, help_text, verbose_name, field, field_kwargs):
         self.name = name
         self.head = head
@@ -61,8 +60,8 @@ class MetadataField(object):
                 self.help_text = _('If empty, %s') % self.populate_from.short_description
             elif isinstance(self.populate_from, Literal):
                 self.help_text = _('If empty, \"%s\" will be used.') % self.populate_from.value
-            elif isinstance(self.populate_from, basestring) and self.populate_from in cls.elements:
-                field = cls.elements[self.populate_from]
+            elif isinstance(self.populate_from, basestring) and self.populate_from in cls._meta.elements:
+                field = cls._meta.elements[self.populate_from]
                 self.help_text = _('If empty, %s will be used.') % field.verbose_name or field.name  
             elif isinstance(self.populate_from, basestring) and hasattr(cls, self.populate_from): 
                 populate_from = getattr(cls, self.populate_from, None)
