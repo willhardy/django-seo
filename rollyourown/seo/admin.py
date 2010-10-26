@@ -6,7 +6,6 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.utils.encoding import smart_unicode
 
-from rollyourown.seo.meta_models import _get_seo_models
 from rollyourown.seo.modelmetadata import get_seo_content_types
 from rollyourown.seo.systemviews import get_seo_views
 
@@ -77,8 +76,8 @@ def get_inline(metadata_class):
 
 def get_model_form(metadata_class):
     # Restrict content type choices to the models set in seo_models
-    seo_models = _get_seo_models(metadata_class)
-    content_type_choices = [(x._get_pk_val(), smart_unicode(x)) for x in ContentType.objects.filter(id__in=get_seo_content_types(seo_models))]
+    content_types = get_seo_content_types(metadata_class._meta.seo_models)
+    content_type_choices = [(x._get_pk_val(), smart_unicode(x)) for x in ContentType.objects.filter(id__in=content_types)]
 
     class ModelMetadataForm(forms.ModelForm):
         _content_type = forms.ChoiceField(choices=content_type_choices)

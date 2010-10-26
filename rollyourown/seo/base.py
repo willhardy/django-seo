@@ -314,7 +314,7 @@ def register_signals():
             delete_callback = curry(_delete_callback, model_class=model_instance)
 
             ## Connect the models listed in settings to the update callback.
-            for model in _get_seo_models(metadata_class):
+            for model in metadata_class._meta.seo_models:
                 models.signals.post_save.connect(update_callback, sender=model, weak=False)
                 models.signals.pre_delete.connect(delete_callback, sender=model, weak=False)
 

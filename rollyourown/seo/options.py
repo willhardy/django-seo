@@ -12,11 +12,11 @@ class Options(object):
         self.use_redirect = meta.pop('use_redirect', False)
         self.use_cache = meta.pop('use_cache', False)
         self.groups = meta.pop('groups', {})
-        self.seo_models = meta.pop('seo_models', [])
         self.seo_views = meta.pop('seo_views', [])
         self.verbose_name = meta.pop('verbose_name', None)
         self.verbose_name_plural = meta.pop('verbose_name_plural', None)
         self.backends = meta.pop('backends', ('path', 'modelinstance', 'model', 'view'))
+        self._set_seo_models(meta.pop('seo_models', []))
         self.bulk_help_text = help_text
         self.original_meta = meta
         self.models = SortedDict()
@@ -77,3 +77,19 @@ class Options(object):
         new_md_attrs['Meta'] = type("Meta", (), new_md_meta)
         model = type("%s%s"%(self.name,"".join(md_type.split())), (base, self.MetadataBaseModel), new_md_attrs.copy())
         self.models[backend.name] = model
+
+    def _set_seo_models(self, value):
+        """ Gets the actual models to be used. """
+        seo_models = []
+        for model_name in value:
+            if "." in model_name:
+                app_label, model_name = model_name.split(".", 1)
+                model = models.get_model(app_label, model_name)
+                if model:
+                    seo_models.append(model)
+            else:
+                app = models.get_app(model_name)
+                if app:
+                    seo_models.extend(models.get_models(app))
+    
+        self.seo_models = seo_models

@@ -319,18 +319,3 @@ def _resolve(value, model_instance=None, context=None):
         value = Template(value).render(context)
     return value
 
-def _get_seo_models(metadata):
-    """ Gets the actual models to be used. """
-    seo_models = []
-    for model_name in metadata._meta.seo_models:
-        if "." in model_name:
-            app_label, model_name = model_name.split(".", 1)
-            model = models.get_model(app_label, model_name)
-            if model:
-                seo_models.append(model)
-        else:
-            app = models.get_app(model_name)
-            if app:
-                seo_models.extend(models.get_models(app))
-
-    return seo_models
