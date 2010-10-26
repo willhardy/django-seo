@@ -36,7 +36,7 @@ class FormattedMetaData(object):
 
     def __init__(self, metadata, instances, path, site=None, language=None):
         self.__metadata = metadata
-        if metadata._meta.use_sites:
+        if metadata._meta.use_sites and site:
             hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest() 
         else:
             hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
