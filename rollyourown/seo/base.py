@@ -5,7 +5,6 @@
 #    * Move/rename namespace polluting attributes
 #    * Documentation
 #    * Make backends optional: Meta.backends = (path, modelinstance/model, view)
-#    * Make cache optional: Meta.use_cache
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -36,14 +35,17 @@ class FormattedMetaData(object):
 
     def __init__(self, metadata, instances, path, site=None, language=None):
         self.__metadata = metadata
-        if metadata._meta.use_sites and site:
-            hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest() 
+        if metadata._meta.use_cache:
+            if metadata._meta.use_sites and site:
+                hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest() 
+            else:
+                hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
+            if metadata._meta.use_i18n:
+                self.__cache_prefix = 'rollyourown.seo.%s.%s.%s' % (self.__metadata.__class__.__name__, hexpath, language)
+            else:
+                self.__cache_prefix = 'rollyourown.seo.%s.%s' % (self.__metadata.__class__.__name__, hexpath)
         else:
-            hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
-        if metadata._meta.use_i18n:
-            self.__cache_prefix = 'rollyourown.seo.%s.%s.%s' % (self.__metadata.__class__.__name__, hexpath, language)
-        else:
-            self.__cache_prefix = 'rollyourown.seo.%s.%s' % (self.__metadata.__class__.__name__, hexpath)
+            self.__cache_prefix = None
         self.__instances_original = instances
         self.__instances_cache = []
 
@@ -83,33 +85,48 @@ class FormattedMetaData(object):
                 return self._resolve_value(populate_from)
 
     def __getattr__(self, name):
-        cache_key = '%s.%s' % (self.__cache_prefix, name)
-        value = cache.get(cache_key)
+        # If caching is enabled, work out a key
+        if self.__cache_prefix:
+            cache_key = '%s.%s' % (self.__cache_prefix, name)
+            value = cache.get(cache_key)
+        else:
+            cache_key = None
+            value = None
+
         # Look for a group called "name"
         if name in self.__metadata._meta.groups:
             if value is not None:
                 return value or None
             value = '\n'.join(unicode(BoundMetaDataField(self.__metadata.elements[f], self._resolve_value(f))) for f in self.__metadata._meta.groups[name]).strip()
+
         # Look for an element called "name"
         elif name in self.__metadata.elements:
             if value is not None:
                 return BoundMetaDataField(self.__metadata.elements[name], value or None)
             value = self._resolve_value(name)
-            cache.set(cache_key, value or '')
+            if cache_key is not None:
+                cache.set(cache_key, value or '')
             return BoundMetaDataField(self.__metadata.elements[name], value)
         else:
             raise AttributeError
 
-        cache.set(cache_key, value or '')
+        if cache_key is not None:
+            cache.set(cache_key, value or '')
 
         return value or None
 
     def __unicode__(self):
         """ String version of this object is the html output of head elements. """
-        value = cache.get(self.__cache_prefix)
+        if self.__cache_prefix is not None:
+            value = cache.get(self.__cache_prefix)
+        else:
+            value = None
+
         if value is None:
             value = mark_safe(u'\n'.join(unicode(getattr(self, f)) for f,e in self.__metadata.elements.items() if e.head))
-            cache.set(self.__cache_prefix, value)
+            if self.__cache_prefix is not None:
+                cache.set(self.__cache_prefix, value or '')
+
         return value
 
 

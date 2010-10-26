@@ -15,9 +15,10 @@
 
 
     TESTS TO WRITE: 
-        - caching with respect to language and site?
+    To check functionality actually works:
         - south compatibility (changing a definition)
 
+    For better coverage:
         - valid_tags given as a string
         - Meta.seo_models = appname.modelname (ie with a dot)
         + if "head" is True, tag is automatically included in the head, if "false" then no
@@ -31,8 +32,6 @@
         + sites conflicting sites, when two entries exist for different sites, the explicit (local) one wins. (Even better: both are used, in the appropriate order)
         + models: list of models and/or apps which are available for model instance meta data
         - verbose_name(_plural): this is passed onto Django
-        - Caching
-            - meta data lookups are avoided by caching previous rendering for certain amount of time
 
 """
 import logging
