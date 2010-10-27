@@ -6,7 +6,7 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.utils.encoding import smart_unicode
 
-from rollyourown.seo.modelmetadata import get_seo_content_types
+from rollyourown.seo.utils import get_seo_content_types
 from rollyourown.seo.systemviews import get_seo_views
 
 # TODO Use groups as fieldsets
