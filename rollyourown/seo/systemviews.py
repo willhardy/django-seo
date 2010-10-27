@@ -26,10 +26,14 @@ def get_view_names(seo_views):
         else:
             app_name = app.__name__.split(".")[:-1]
             app_name.append("urls")
-            urls = __import__(".".join(app_name)).urls
-            for url in urls.urlpatterns:
-                if url.name:
-                    output.append(url.name)
+            try:
+                urls = __import__(".".join(app_name)).urls
+            except (ImportError, AttributeError):
+                output.append(name)
+            else:
+                for url in urls.urlpatterns:
+                    if url.name:
+                        output.append(url.name)
     return output
 
 from rollyourown.seo.utils import LazyChoices

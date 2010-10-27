@@ -10,7 +10,6 @@ from django.contrib.contenttypes import generic
 from django.template import Template, Context
 from django.utils.datastructures import SortedDict
 
-from rollyourown.seo.systemviews import SystemViewField
 from rollyourown.seo.utils import resolve_to_name, NotSet, Literal
 
 RESERVED_FIELD_NAMES = ('_metadata', '_path', '_content_type', '_object_id',
@@ -48,9 +47,9 @@ class MetadataBaseModel(models.Model):
             populate_from = element.populate_from
             if callable(populate_from):
                 if getattr(populate_from, 'im_self', None):
-                    return populate_from()
+                    return populate_from(self)
                 else:
-                    return populate_from(self._metadata)
+                    return populate_from(self._metadata, self)
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:
@@ -64,9 +63,9 @@ class MetadataBaseModel(models.Model):
         else:
             if callable(value):
                 if getattr(value, 'im_self', None):
-                    return value()
+                    return value(self)
                 else:
-                    return value(self._metadata)
+                    return value(self._metadata, self)
             return value
 
 
@@ -163,7 +162,7 @@ class PathBackend(MetadataBackend):
 
     def get_model(self, options):
         class PathMetadataBase(MetadataBaseModel):
-            _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
+            _path = models.CharField(_('path'), max_length=255, unique=not (options.use_sites or options.use_i18n))
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
             if options.use_i18n:
@@ -192,7 +191,7 @@ class ViewBackend(MetadataBackend):
 
     def get_model(self, options):
         class ViewMetadataBase(MetadataBaseModel):
-            _view = SystemViewField(unique=not (options.use_sites or options.use_i18n), restrict_to=options.seo_views)
+            _view = models.CharField(max_length=255, unique=not (options.use_sites or options.use_i18n))
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
             if options.use_i18n:
@@ -231,7 +230,7 @@ class ModelInstanceBackend(MetadataBackend):
 
     def get_model(self, options):
         class ModelInstanceMetadataBase(MetadataBaseModel):
-            _path = models.CharField(_('path'), max_length=511, unique=not (options.use_sites or options.use_i18n))
+            _path = models.CharField(_('path'), max_length=255, unique=not (options.use_sites or options.use_i18n))
             _content_type = models.ForeignKey(ContentType, editable=False)
             _object_id = models.PositiveIntegerField(editable=False)
             _content_object = generic.GenericForeignKey('_content_type', '_object_id')
