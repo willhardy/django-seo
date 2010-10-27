@@ -186,12 +186,11 @@ class ViewBackend(MetadataBackend):
 
     def get_instances(self, queryset, path, context):
         view_name = resolve_to_name(path)
-        if view_name is not None:
-            return queryset.filter(_view=view_name)
+        return queryset.filter(_view=view_name or "")
 
     def get_model(self, options):
         class ViewMetadataBase(MetadataBaseModel):
-            _view = models.CharField(max_length=255, unique=not (options.use_sites or options.use_i18n))
+            _view = models.CharField(max_length=255, unique=not (options.use_sites or options.use_i18n), default="", blank=True)
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True)
             if options.use_i18n:
@@ -230,7 +229,7 @@ class ModelInstanceBackend(MetadataBackend):
 
     def get_model(self, options):
         class ModelInstanceMetadataBase(MetadataBaseModel):
-            _path = models.CharField(_('path'), max_length=255, unique=not (options.use_sites or options.use_i18n))
+            _path = models.CharField(_('path'), max_length=255, editable=False, unique=not (options.use_sites or options.use_i18n))
             _content_type = models.ForeignKey(ContentType, editable=False)
             _object_id = models.PositiveIntegerField(editable=False)
             _content_object = generic.GenericForeignKey('_content_type', '_object_id')

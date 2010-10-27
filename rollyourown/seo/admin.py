@@ -91,9 +91,10 @@ def get_model_form(metadata_class):
 def get_view_form(metadata_class):
     # Restrict content type choices to the models set in seo_models
     view_choices = [(key, " ".join(key.split("_"))) for key in get_seo_views(metadata_class)]
+    view_choices.insert(0, ("", "---------"))
 
     class ModelMetadataForm(forms.ModelForm):
-        _view = forms.ChoiceField(choices=view_choices)
+        _view = forms.ChoiceField(choices=view_choices, required=False)
 
         class Meta:
             model = metadata_class._meta.get_model('model')
