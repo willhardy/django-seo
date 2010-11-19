@@ -1,5 +1,3 @@
 include README.rst INSTALL.txt LICENSE.txt MANIFEST.in
 recursive-include docs *
 recursive-include regressiontests *
-recursive-include seo/media *
-recursive-include seo/templates *
