@@ -9,11 +9,9 @@ except ImportError:
 
 from setuptools import setup, find_packages
 
-version = __import__('rollyourown.seo').get_version().replace(" ", "-")
-
 setup(
     name = "Django SEO",
-    version = version,
+    version = '1.0 beta 1',
     packages = find_packages(exclude=["docs*", "regressiontests*"]),
     install_requires = ['django>=1.0'],
     author = "Will Hardy",
