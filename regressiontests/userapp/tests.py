@@ -38,14 +38,14 @@ import logging
 import StringIO
 
 from django.core.urlresolvers import reverse
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.client import FakePayload
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.contrib.redirects.models import Redirect
 from django.contrib.auth.models import User
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.core.handlers.wsgi import WSGIRequest
 from django.template import Template, RequestContext, TemplateSyntaxError
 from django.core.cache import cache
@@ -225,7 +225,7 @@ class DataSelection(TestCase):
         old_path = self.product_metadata._path
         self.product_metadata._path = '/products/2/'
         self.product_metadata.save()
-        self.assertEqual(self.product_metadata._object_id, 1)
+        self.assertEqual(self.product_metadata._object_id, self.product.pk)
 
         # Create a new product that will take the same path
         new_product = Product.objects.create()
@@ -577,7 +577,7 @@ class Formatting(TestCase):
         self.assertEqual(unicode(metadata.raw2), exp)
 
 
-class Definition(TestCase):
+class Definition(TransactionTestCase):
     """ Definition (System tests)
         + if "head" is True, tag is automatically included in the head
         + if "name" is included, that is the name of the given tag, otherwise, the field name is used
@@ -621,19 +621,18 @@ class Definition(TestCase):
             Coverage._meta.get_model('path').objects.create(_path="/unique/")
             self.fail("Exception not raised when duplicate path created")
         except IntegrityError:
-            pass
+            transaction.rollback()
 
         # Check that uniqueness handles sites correctly
         current_site = Site.objects.get_current()
+        another_site = Site.objects.create(id=current_site.id+1)
         WithSites._meta.get_model('path').objects.create(_site=current_site, _path="/unique/")
-        pmd = WithSites._meta.get_model('path').objects.create(_site=None, _path="/unique/")
-        pmd._site_id = current_site.id + 1
-        pmd.save()
+        pmd = WithSites._meta.get_model('path').objects.create(_site=another_site, _path="/unique/")
         try:
             WithSites._meta.get_model('path').objects.create(_site=current_site, _path="/unique/")
             self.fail("Exception not raised when duplicate path/site combination created")
         except IntegrityError:
-            pass
+            transaction.rollback()
 
 
 class MetaOptions(TestCase):
