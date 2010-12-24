@@ -250,6 +250,10 @@ class ModelInstanceBackend(MetadataBackend):
                 context['content_type'] = self._content_type
                 context['model_instance'] = self
 
+            def save(self, *args, **kwargs):
+                self._path = self._content_object.get_absolute_url()
+                super(ModelInstanceMetadataBase, self).save(*args, **kwargs)
+
         return ModelInstanceMetadataBase
 
 
