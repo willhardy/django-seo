@@ -215,7 +215,7 @@ The metadata definition can take a number of options that are provided in a ``Me
 
 .. attribute:: Meta.seo_models
 
-    List of apps and/or models (in the form ``app_name.model_name``) for which metadata will be attached. When an instance is created, a matching metadata instance is created.
+    List of apps and/or models (in the form ``app_name.model_name``) for which metadata will be attached. When an instance is created, a matching metadata instance is automatically created. Note that this is incompatible with inline metadata editing in the Admin, as it will automatically create an instance before the Django Admin will try to do exactly the same.
 
 .. attribute:: Meta.seo_views
 
@@ -343,3 +343,4 @@ An admin inline can also be created, to add metadata as an inline form on the ad
     class MyModelAdmin(admin.ModelAdmin):
         inlines = [get_inline(MyMetadata)]
 
+Make sure that this model does not appear in the ``seo_models`` setting. You can either use one or the other: automatically add a metadata instance or allow it to appear inline in the admin.
