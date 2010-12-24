@@ -867,7 +867,7 @@ class Admin(TestCase):
         user.save()
         self.client.login(username="admin", password="admin")
 
-    def test_inline(self):
+    def test_inline_smoke(self):
         """ Tests that no error is raised when viewing an inline in the admin. 
         """
         path = '/admin/userapp/page/add/'
@@ -876,5 +876,29 @@ class Admin(TestCase):
         except Exception, e:
             self.fail(u"Exception raised at '%s': %s" % (path, e))
         self.assertEqual(response.status_code, 200)
+
+    def test_inline_add(self):
+        path = '/admin/userapp/page/add/'
+        data = {
+            "title": "Test",
+            "type": "test",
+            "seo-coveragemodelinstance-_content_type-_object_id-TOTAL_FORMS": "1",
+            "seo-coveragemodelinstance-_content_type-_object_id-INITIAL_FORMS": "0",
+            "seo-coveragemodelinstance-_content_type-_object_id-MAX_NUM_FORMS": "1",
+            "seo-coveragemodelinstance-_content_type-_object_id-0-title": "test",
+            "seo-withsitesmodelinstance-_content_type-_object_id-TOTAL_FORMS": "1",
+            "seo-withsitesmodelinstance-_content_type-_object_id-INITIAL_FORMS": "0",
+            "seo-withsitesmodelinstance-_content_type-_object_id-MAX_NUM_FORMS": "1",
+        }
+
+        try:
+            response = self.client.post(path, data)
+        except Exception, e:
+            self.fail(u"Exception raised at '%s': %s" % (path, e))
+        self.assertEqual(response.status_code, 200)
+
+
+
+
 
 
