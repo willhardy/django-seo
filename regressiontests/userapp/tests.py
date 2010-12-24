@@ -878,27 +878,21 @@ class Admin(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_inline_add(self):
-        path = '/admin/userapp/page/add/'
+        path = '/admin/userapp/tag/add/'
         data = {
-            "title": "Test",
-            "type": "test",
+            "name": "Test",
+            "seo-coveragemodelinstance-_content_type-_object_id-0-title": "test",
             "seo-coveragemodelinstance-_content_type-_object_id-TOTAL_FORMS": "1",
             "seo-coveragemodelinstance-_content_type-_object_id-INITIAL_FORMS": "0",
             "seo-coveragemodelinstance-_content_type-_object_id-MAX_NUM_FORMS": "1",
-            "seo-coveragemodelinstance-_content_type-_object_id-0-title": "test",
             "seo-withsitesmodelinstance-_content_type-_object_id-TOTAL_FORMS": "1",
             "seo-withsitesmodelinstance-_content_type-_object_id-INITIAL_FORMS": "0",
             "seo-withsitesmodelinstance-_content_type-_object_id-MAX_NUM_FORMS": "1",
         }
 
         try:
-            response = self.client.post(path, data)
+            response = self.client.post(path, data, follow=True)
         except Exception, e:
             self.fail(u"Exception raised at '%s': %s" % (path, e))
         self.assertEqual(response.status_code, 200)
-
-
-
-
-
 

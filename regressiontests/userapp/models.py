@@ -36,3 +36,13 @@ class Category(models.Model):
 
 class NoPath(models.Model):
     pass
+
+class Tag(models.Model):
+    name = models.CharField(max_length=255, default="")
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('userapp_tag', [self.name], {})
+
+    def __unicode__(self):
+        return self.name
