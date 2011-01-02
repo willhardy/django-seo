@@ -5,25 +5,25 @@
 SEO data definition
 ===================
 
-The SEO data definition is used to create a series of Django models to store meta data.
+The SEO data definition is used to create a series of Django models to store metadata.
 The definition itself, is similar to the definition of Django models. Here is a simple example:
 
 .. code-block:: python
 
-    class BasicExample(seo.MetaData):
+    class BasicExample(seo.Metadata):
         title       = seo.Tag(head=True)
         keywords    = seo.MetaTag()
         description = seo.MetaTag()
         heading     = seo.Tag(name="h1")
 
-This eventually produces some models, which stores four different pieces of meta data.
+This eventually produces some models, which stores four different pieces of metadata.
 The behaviour can be customised by passing attributes, as the ``heading`` field does.
 
 
 Fields
 ======
 
-The are four built-in meta data fields: ``seo.Tag()``, ``seo.MetaTag()``, ``seo.KeywordTag()``  and ``seo.Raw()``. 
+The are four built-in metadata fields: ``seo.Tag()``, ``seo.MetaTag()``, ``seo.KeywordTag()``  and ``seo.Raw()``. 
 The full range of attributes for each type of field is listed below.
 
 ``seo.Tag``
@@ -47,7 +47,7 @@ This is your standard, every-day HTML tag, like ``<title>`` or ``<h1>``.
 ``seo.MetaTag``
 ---------------
 
-Because ``meta`` tags are a common place to store meta data, a special field is provided. 
+Because ``meta`` tags are a common place to store metadata, a special field is provided. 
 This field is useful, as it has attribute escaping built in (for eg quotations).
 
 .. class:: seo.MetaTag(**options)
@@ -136,7 +136,7 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
         3) otherwise, treat the given value as a literal value. Literal values can also be explicitly marked.
 
     If a callable or the name of a method is provided, 
-    it is called (at run time) with the meta data as the only argument (or of course ``self``) .
+    it is called (at run time) with the metadata as the only argument (or of course ``self``) .
     Return ``None`` to leave out the tag/meta tag/raw data.
 
 .. attribute:: max_length
@@ -162,11 +162,11 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
 Meta Options
 ============
 
-The meta data definition can take a number of options that are provided in a ``Meta`` class (sorry for the name), much like Django models and forms do. For example:
+The metadata definition can take a number of options that are provided in a ``Meta`` class (sorry for the name), much like Django models and forms do. For example:
 
 .. code-block:: python
 
-    class BasicExample(seo.MetaData):
+    class BasicExample(seo.Metadata):
         title       = seo.Tag(head=True)
         keywords    = seo.MetaTag()
         description = seo.MetaTag()
@@ -186,9 +186,9 @@ The meta data definition can take a number of options that are provided in a ``M
 
 .. attribute:: Meta.use_sites
 
-    Boolean, determines if all meta data should be linked to a site in the sites framework.
-    Each meta data entry can then be optionally associated with a site, meaning it will only appear if the selected site is the current site.
-    If site is set to null on a meta data entry, it will be used for all sites that are missing an explicit entry.
+    Boolean, determines if all metadata should be linked to a site in the sites framework.
+    Each metadata entry can then be optionally associated with a site, meaning it will only appear if the selected site is the current site.
+    If site is set to null on a metadata entry, it will be used for all sites that are missing an explicit entry.
     By default, ``use_sites`` is ``False``.
 
 .. attribute:: Meta.use_cache
@@ -199,14 +199,14 @@ The meta data definition can take a number of options that are provided in a ``M
 
 .. attribute:: Meta.use_i18n
 
-    If this is ``True``, an extra field for language selection is provided. Meta data will only be returned for the given language.
+    If this is ``True``, an extra field for language selection is provided. Metadata will only be returned for the given language.
     By default, ``use_i18n`` is ``False``.
 
 ..
     .. attribute:: Meta.use_redirect
     
-        If this is set to ``True``, automatically add a ``Redirect`` from the ``django.contrib.redirects`` app when a path changes for a given meta data entry.
-        In practice, this applies to path-based and model-instance-based meta data
+        If this is set to ``True``, automatically add a ``Redirect`` from the ``django.contrib.redirects`` app when a path changes for a given metadata entry.
+        In practice, this applies to path-based and model-instance-based metadata
         By default, ``use_redirect`` is ``False``.
 
 .. attribute:: Meta.groups
@@ -215,15 +215,15 @@ The meta data definition can take a number of options that are provided in a ``M
 
 .. attribute:: Meta.seo_models
 
-    List of apps and/or models (in the form ``app_name.model_name``) for which meta data will be attached. When an instance is created, a matching meta data instance is created.
+    List of apps and/or models (in the form ``app_name.model_name``) for which metadata will be attached. When an instance is created, a matching metadata instance is created.
 
 .. attribute:: Meta.seo_views
 
-    List of apps and/or view names to which meta data can be attached. When an app name is given, a ``urls.py`` will be used to limit the installed views.
+    List of apps and/or view names to which metadata can be attached. When an app name is given, a ``urls.py`` will be used to limit the installed views.
 
 .. attribute:: Meta.backends
 
-    When you define meta data fields, four django models are created to attach the meta data to various things: paths, model instances, models and views. 
+    When you define metadata fields, four django models are created to attach the metadata to various things: paths, model instances, models and views. 
     You can restrict which of these are created by setting ``backeneds`` to a list with a subset of the default value: ``("path", "modelinstance", "model", "view")``
 
 .. attribute:: Meta.verbose_name
@@ -257,7 +257,7 @@ You can also edit the help text for a number of fields in a convenient syntax. F
 
 .. code-block:: python
 
-    class BasicExample(seo.MetaData):
+    class BasicExample(seo.Metadata):
         title       = seo.Tag(head=True)
         keywords    = seo.MetaTag()
         description = seo.MetaTag()
@@ -272,19 +272,19 @@ You can also edit the help text for a number of fields in a convenient syntax. F
 Templates
 =========
 
-A single template tag is provided to output meta data in templates. It requires loading the ``seo`` template library, and can be called in a number of ways:
+A single template tag is provided to output metadata in templates. It requires loading the ``seo`` template library, and can be called in a number of ways:
 
 .. code-block:: html
 
     {% get_metadata %}
 
-This gets the meta data for the current path (if `RequestContext` is used) and outputs all meta data flagged to appear in the ``<head>``.
+This gets the metadata for the current path (if `RequestContext` is used) and outputs all metadata flagged to appear in the ``<head>``.
 
 .. code-block:: html
 
     {% get_metadata for obj %}
 
-This time, the meta data is retrieved for the path belonging to the given object. The object can be a model instance (actually, anything with ``get_absolute_url``) or a path itself.
+This time, the metadata is retrieved for the path belonging to the given object. The object can be a model instance (actually, anything with ``get_absolute_url``) or a path itself.
 
 .. code-block:: html
 
@@ -294,22 +294,22 @@ This time, the meta data is retrieved for the path belonging to the given object
     {% get_metadata for obj as var %}
     {{ var }}
 
-To exercise a little more flexibility, you can store the retrieved meta data as a context variable. Outputting the variable by itself will output all meta data flagged to appear in the ``<head>``.
+To exercise a little more flexibility, you can store the retrieved metadata as a context variable. Outputting the variable by itself will output all metadata flagged to appear in the ``<head>``.
 
-If you have multiple meta data definitions, you can choose the relevant one by providing the name of the class. Here are your alternatives for doing so:
+If you have multiple metadata definitions, you can choose the relevant one by providing the name of the class. Here are your alternatives for doing so:
 
 .. code-block:: html
 
-    {% get_metadata MetaDataClass %}
-    {% get_metadata MetaDataClass for obj %}
-    {% get_metadata MetaDataClass as var %}
-    {% get_metadata MetaDataClass for obj as var %}
+    {% get_metadata MetadataClass %}
+    {% get_metadata MetadataClass for obj %}
+    {% get_metadata MetadataClass as var %}
+    {% get_metadata MetadataClass for obj as var %}
 
 
-Meta data template objects
---------------------------
+Metadata template objects
+-------------------------
 
-As seen above, you can store the fetched meta data as a variable. This variable can then be used to access specific meta data fields, groups and values. For example:
+As seen above, you can store the fetched metadata as a variable. This variable can then be used to access specific metadata fields, groups and values. For example:
 
 .. code-block:: html
 
@@ -322,24 +322,24 @@ As seen above, you can store the fetched meta data as a variable. This variable 
 Admin
 =====
 
-To add the models of your defined meta data to an admin site, make a single call to ``register_seo_admin``. For example:
+To add the models of your defined metadata to an admin site, make a single call to ``register_seo_admin``. For example:
 
 .. code-block:: python
 
     from rollyourown.seo.admin import register_seo_admin
     from django.contrib import admin
-    from myapp.seo import MyMetaData
+    from myapp.seo import MyMetadata
 
-    register_seo_admin(admin.site, MyMetaData)
+    register_seo_admin(admin.site, MyMetadata)
 
-An admin inline can also be created, to add meta data as an inline form on the admin page of a model instance. For example:
+An admin inline can also be created, to add metadata as an inline form on the admin page of a model instance. For example:
 
 .. code-block:: python
 
     from rollyourown.seo.admin import get_inline
     from django.contrib import admin
-    from myapp.seo import MyMetaData
+    from myapp.seo import MyMetadata
 
     class MyModelAdmin(admin.ModelAdmin):
-        inlines = [get_inline(MyMetaData)]
+        inlines = [get_inline(MyMetadata)]
 

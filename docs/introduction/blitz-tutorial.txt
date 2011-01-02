@@ -20,7 +20,7 @@ Create a file ``seo.py`` in any app, with the following simple definition:
 
     from rollyourown import seo
 
-    class MyMetaData(seo.MetaData):
+    class MyMetadata(seo.Metadata):
         title       = seo.Tag(head=True, max_length=68)
         description = seo.MetaTag(max_length=155)
         keywords    = seo.KeywordTag()
@@ -31,21 +31,21 @@ Run ``syncdb``
 Step Three: Admin
 -----------------
 
-To edit the data in the admin, call ``register_seo_admin`` with the admin site and the meta data definition:
+To edit the data in the admin, call ``register_seo_admin`` with the admin site and the metadata definition:
 
 .. code-block:: python
 
     from rollyourown.seo.admin import register_seo_admin
     from django.contrib import admin
-    from myapp.models import MyMetaData
+    from myapp.models import MyMetadata
 
-    register_seo_admin(admin.site, MyMetaData)
+    register_seo_admin(admin.site, MyMetadata)
 
 
 Step Four: Adding to templates
 -----------------------------------
 
-To get the meta data in your templates, use the ``{% get_metadata %}`` template tag:
+To get the metadata in your templates, use the ``{% get_metadata %}`` template tag:
 
 .. code-block:: html
 
@@ -69,11 +69,11 @@ If you save the metadata object as a variable, you'll be able to access the fiel
 .. code-block:: html
 
     {% load seo %}
-    {% get_metadata as meta_data %}
+    {% get_metadata as metadata %}
 
-    {{ meta_data }}
+    {{ metadata }}
 
-    {{ meta_data.heading }}
+    {{ metadata.heading }}
     <h1 class="special">{{ my_meta.heading.value }}</h1>
     <p>{{ my_meta.description.value }}</p>
 
@@ -95,7 +95,7 @@ What next?
 
 This is just an introduction to the framework. There are a number of other features including:
 
-- Variable substitution to access model instance attributes (for model-based meta data) and view context (for view-based meta data)
+- Variable substitution to access model instance attributes (for model-based metadata) and view context (for view-based metadata)
 - Optional support for django sites framework
 - Optional i18n (internationalisation) support
 - Optional caching

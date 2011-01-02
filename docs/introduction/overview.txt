@@ -15,10 +15,10 @@ Django SEO is a library that allows you to attach metadata to:
 - Views
 
 It is a library because you, the developer, have full control over what sort of information is attached to the above, and how it is eventually displayed.
-To use this library, you need to define the meta data you want and add the output to your templates. Everything else (retrieval, formatting, escaping, caching) is handled for you.
+To use this library, you need to define the metadata you want and add the output to your templates. Everything else (retrieval, formatting, escaping, caching) is handled for you.
 
-Meta data can be edited by site administrators in the Django Admin, either in a centralised place, or inline with the relavent models.
-As requirements change, it may become necessary to add new meta data fields. Having the meta data definition confined to a single, short class means that it is easy to update (even for amateur programmers).
+Metadata can be edited by site administrators in the Django Admin, either in a centralised place, or inline with the relavent models.
+As requirements change, it may become necessary to add new metadata fields. Having the metadata definition confined to a single, short class means that it is easy to update (even for amateur programmers).
 
 What's next?
 ------------
