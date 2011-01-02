@@ -37,7 +37,7 @@ To edit the data in the admin, call ``register_seo_admin`` with the admin site a
 
     from rollyourown.seo.admin import register_seo_admin
     from django.contrib import admin
-    from myapp.models import MyMetadata
+    from myapp.seo import MyMetadata
 
     register_seo_admin(admin.site, MyMetadata)
 
