@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: UTF-8 -*-
 
 try:
@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "Django SEO",
-    version = '1.0 beta 1',
+    version = '1.0beta1',
     packages = find_packages(exclude=["docs*", "regressiontests*"]),
     install_requires = ['django>=1.0'],
     author = "Will Hardy",
