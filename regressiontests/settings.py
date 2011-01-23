@@ -124,3 +124,8 @@ except ImportError:
 SEO_MODELS = ('userapp',)
 
 COVERAGE_MODULES = ('rollyourown.seo', 'userapp', 'flatpages.FlatPage')
+
+try:
+    from settings_local import *
+except ImportError:
+    pass
