@@ -39,6 +39,7 @@ import StringIO
 
 from django.core.urlresolvers import reverse
 from django.test import TestCase
+from django.test.client import FakePayload
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.contrib.redirects.models import Redirect
@@ -792,7 +793,13 @@ class Templates(TestCase):
         """ Asserts that the given template string compiles to the given output. 
         """
         input = '{% load seo %}' + input
-        environ = { 'PATH_INFO': self.path, 'REQUEST_METHOD': 'GET' } 
+        environ = { 
+            'PATH_INFO': self.path, 
+            'REQUEST_METHOD': 'GET',
+            'wsgi.input': FakePayload(''),
+            } 
+        
+        # Create a fake request for our purposes
         request = WSGIRequest(environ) 
         context= RequestContext(request)
         context.update(self.context)

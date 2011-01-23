@@ -8,10 +8,10 @@ current_site = Site.objects.get_current()
 class Coverage(seo.Metadata):
     """ A SEO metadata definition, which should cover all configurable options.
     """
-    def get_populate_from1(self):
+    def get_populate_from1(self, instance):
         return "wxy"
 
-    def get_populate_from2(self):
+    def get_populate_from2(self, instance):
         return "xyz"
     get_populate_from2.short_description = "Always xyz"
 
