@@ -42,6 +42,7 @@ from django.test import TestCase
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.contrib.redirects.models import Redirect
+from django.contrib.auth.models import User
 from django.conf import settings
 from django.db import IntegrityError
 from django.core.handlers.wsgi import WSGIRequest
@@ -849,5 +850,25 @@ class Random(TestCase):
             self.fail("Exception inappropriately raised: %r" % e)
         new_num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
         self.assertEqual(num_metadata, new_num_metadata)
+
+
+class Admin(TestCase):
+
+    def setUp(self):
+        # Create and login a superuser for the admin
+        user = User(username="admin", is_staff=True, is_superuser=True)
+        user.set_password("admin")
+        user.save()
+        self.client.login(username="admin", password="admin")
+
+    def test_inline(self):
+        """ Tests that no error is raised when viewing an inline in the admin. 
+        """
+        path = '/admin/userapp/page/add/'
+        try:
+            response = self.client.get(path)
+        except Exception, e:
+            self.fail(u"Exception raised at '%s': %s" % (path, e))
+        self.assertEqual(response.status_code, 200)
 
 
