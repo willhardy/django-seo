@@ -70,7 +70,12 @@ def register_seo_admin(admin_site, metadata_class):
 
 
 def get_inline(metadata_class):
-    attrs = {'max_num': 1, 'model': metadata_class._meta.get_model('modelinstance')}
+    attrs = {
+        'max_num': 1, 
+        'model': metadata_class._meta.get_model('modelinstance'), 
+        'ct_field': "_content_type",
+        'ct_fk_field': "_object_id",
+        }
     return type('MetadataInline', (generic.GenericStackedInline,), attrs)
 
 
