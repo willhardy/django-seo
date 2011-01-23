@@ -34,8 +34,10 @@ class Category(models.Model):
     def get_absolute_url(self):
         return ('userapp_my_view', ["abc"], {})
 
+
 class NoPath(models.Model):
     pass
+
 
 class Tag(models.Model):
     name = models.CharField(max_length=255, default="")
@@ -46,3 +48,4 @@ class Tag(models.Model):
 
     def __unicode__(self):
         return self.name
+
