@@ -34,7 +34,6 @@
         - verbose_name(_plural): this is passed onto Django
 
 """
-import logging
 import StringIO
 
 from django.core.urlresolvers import reverse
@@ -432,20 +431,13 @@ class ValueResolution(TestCase):
 
     def test_not_request_context(self):
         """ Tests the view metadata on a view that is not a request context. """
-        # catch logging messages
-        logs = StringIO.StringIO()
-        handler = logging.StreamHandler(logs)
-        logging.getLogger().addHandler(handler)
-
         self.view_metadata._view = "userapp_my_other_view"
         self.view_metadata.save()
-        response = self.client.get(reverse('userapp_my_other_view', args=["abc123"]))
-        # Code should not throw error
-        self.assertEqual(response.status_code, 200)
-        # But a warning instead
-        logging.getLogger('').removeHandler(handler)
-
-        assert "{% get_metadata %} needs a RequestContext" in logs.getvalue(), "No warning logged when RequestContext not used."
+        try:
+            response = self.client.get(reverse('userapp_my_other_view', args=["abc123"]))
+            self.fail("No error raised when RequestContext not used.")
+        except TemplateSyntaxError:
+            pass
 
 
 class Formatting(TestCase):
