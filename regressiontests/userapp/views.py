@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render_to_response
-from userapp.models import Page
+from userapp.models import Page, Tag, Product
 from django.template.context import RequestContext
 
 def page_detail(request, page_type):

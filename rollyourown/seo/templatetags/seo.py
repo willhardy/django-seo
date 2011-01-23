@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from django import template
-import logging
 from rollyourown.seo import get_metadata, get_linked_metadata
 from django.template import VariableDoesNotExist
 
@@ -26,10 +25,10 @@ class MetadataNode(template.Node):
             if callable(path):
                 path = path()
         except VariableDoesNotExist:
-            msg = ("{% get_metadata %} needs a RequestContext with the "
-                  "'django.core.context_processors.request' context processor.")
-            logging.warning(msg) # or is this an error?
-            return ""
+            msg = (u"{% get_metadata %} needs some path information.\n"
+                        u"Please use RequestContext with the django.core.context_processors.request context processor.\n"
+                        "Or provide a path or object explicitly, eg {% get_metadata for path %} or {% get_metadata for object %}")
+            raise template.TemplateSyntaxError(msg)
 
         kwargs = {}
 
@@ -42,14 +41,11 @@ class MetadataNode(template.Node):
             kwargs['language'] = self.language.resolve(context)
 
         metadata = None
-
         # If the path is a djano model object
         if hasattr(path, 'pk'):
             metadata = get_linked_metadata(path, self.metadata_name, context, **kwargs)
-
         if not isinstance(path, basestring):
             path = None
-
         if not metadata:
             # Fetch the metadata
             metadata = get_metadata(path, self.metadata_name, context, **kwargs)
