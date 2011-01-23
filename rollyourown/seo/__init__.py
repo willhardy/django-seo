@@ -1,7 +1,7 @@
 VERSION = (1, 0, 0, 'beta', 1)
 __authors__ = ["Will Hardy <django-seo@willhardy.com.au>"]
 
-from rollyourown.seo.base import Metadata, Tag, KeywordTag, MetaTag, Raw, Literal, get_metadata
+from rollyourown.seo.base import Metadata, Tag, KeywordTag, MetaTag, Raw, Literal, get_metadata, get_linked_metadata
 
 def get_version():
     version = '%s.%s' % (VERSION[0], VERSION[1])

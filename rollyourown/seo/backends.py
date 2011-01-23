@@ -185,7 +185,9 @@ class ViewBackend(MetadataBackend):
     unique_together = (("_view",),)
 
     def get_instances(self, queryset, path, context):
-        view_name = resolve_to_name(path)
+        view_name = ""
+        if path is not None:
+            view_name = resolve_to_name(path)
         return queryset.filter(_view=view_name or "")
 
     def get_model(self, options):
@@ -251,7 +253,12 @@ class ModelInstanceBackend(MetadataBackend):
                 context['model_instance'] = self
 
             def save(self, *args, **kwargs):
-                self._path = self._content_object.get_absolute_url()
+                try:
+                    path_func = self._content_object.get_absolute_url
+                except AttributeError:
+                    pass
+                else:
+                    self._path = path_func()
                 super(ModelInstanceMetadataBase, self).save(*args, **kwargs)
 
         return ModelInstanceMetadataBase

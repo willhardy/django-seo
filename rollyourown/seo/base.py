@@ -242,18 +242,28 @@ class Metadata(object):
     __metaclass__ = MetadataBase
 
 
-def get_metadata(path, name=None, context=None, site=None, language=None):
+def _get_metadata_model(name=None):
     # Find registered Metadata object
     if name is not None:
         try:
-            metadata = registry[name]
+            return registry[name]
         except KeyError:
             raise Exception("Metadata definition with name \"%s\" does not exist." % name)
     else:
         assert len(registry) == 1, "You must have exactly one Metadata class, if using get_metadata() without a 'name' parameter."
-        metadata = registry.values()[0]
+        return registry.values()[0]
+
+def get_metadata(path, name=None, context=None, site=None, language=None):
+    metadata = _get_metadata_model(name)
     return metadata._get_formatted_data(path, context, site, language)
 
+def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
+    metadata_model = _get_metadata_model(name)._meta.get_model('modelinstance')
+    content_type = ContentType.objects.get_for_model(obj)
+    try:
+        return metadata_model.objects.get(_content_type=content_type, _object_id=obj.pk)
+    except metadata_model.DoesNotExist:
+        return None
 
 def _update_callback(model_class, sender, instance, created, **kwargs):
     """ Callback to be attached to a post_save signal, updating the relevant

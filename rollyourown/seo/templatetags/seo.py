@@ -3,7 +3,7 @@
 
 from django import template
 import logging
-from rollyourown.seo import get_metadata
+from rollyourown.seo import get_metadata, get_linked_metadata
 from django.template import VariableDoesNotExist
 
 register = template.Library()
@@ -21,7 +21,7 @@ class MetadataNode(template.Node):
             path = self.path.resolve(context)
             if hasattr(path, 'get_absolute_url'):
                 path = path.get_absolute_url
-            if 'get_absolute_url' in path:
+            if hasattr(path, "__iter__") and 'get_absolute_url' in path:
                 path = path['get_absolute_url']
             if callable(path):
                 path = path()
@@ -41,8 +41,18 @@ class MetadataNode(template.Node):
         if self.language:
             kwargs['language'] = self.language.resolve(context)
 
-        # Fetch the metadata
-        metadata = get_metadata(path, self.metadata_name, context, **kwargs)
+        metadata = None
+
+        # If the path is a djano model object
+        if hasattr(path, 'pk'):
+            metadata = get_linked_metadata(path, self.metadata_name, context, **kwargs)
+
+        if not isinstance(path, basestring):
+            path = None
+
+        if not metadata:
+            # Fetch the metadata
+            metadata = get_metadata(path, self.metadata_name, context, **kwargs)
 
         # If a variable name is given, store the result there
         if self.variable_name is not None:
