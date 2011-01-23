@@ -18,9 +18,9 @@ Here is an example of a definition::
 
     from rollyourown import seo
 
-    class BasicMetaData(seo.MetaData):
+    class BasicMetadata(seo.Metadata):
         title          = seo.Tag(max_length=68, head=True)
-        keywords       = seo.MetaTag()
+        keywords       = seo.KeywordTag()
         description    = seo.MetaTag(max_length=155)
         heading        = seo.Tag(name="h1")
         subheading     = seo.Tag(name="h2")
