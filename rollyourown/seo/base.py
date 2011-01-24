@@ -72,11 +72,7 @@ class FormattedMetadata(object):
         if name in self.__metadata._meta.elements:
             populate_from = self.__metadata._meta.elements[name].populate_from
             if callable(populate_from):
-                # Instance methods have a 'self' under im_self
-                if getattr(populate_from, 'im_self', None):
-                    return populate_from(None)
-                else:
-                    return populate_from(self.__metadata, None)
+                return populate_from(None)
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:

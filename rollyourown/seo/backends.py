@@ -46,10 +46,7 @@ class MetadataBaseModel(models.Model):
             # Otherwise, return an appropriate default value (populate_from)
             populate_from = element.populate_from
             if callable(populate_from):
-                if getattr(populate_from, 'im_self', None):
-                    return populate_from(self)
-                else:
-                    return populate_from(self._metadata, self)
+                return populate_from(self)
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:
