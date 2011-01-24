@@ -2,7 +2,8 @@ from rollyourown import seo
 from django.db import models
 from django.contrib.sites.models import Site
 
-site_name = "example.com"
+def get_site_name(metadata, instance):
+    return "example.com"
 
 class Coverage(seo.Metadata):
     """ A SEO metadata definition, which should cover all configurable options.
@@ -14,7 +15,7 @@ class Coverage(seo.Metadata):
         return "xyz"
     get_populate_from2.short_description = "Always xyz"
 
-    title        = seo.Tag(populate_from=seo.Literal(site_name), head=True)
+    title        = seo.Tag(populate_from=get_site_name, head=True)
     heading      = seo.Tag(max_length=68, name="hs:tag", verbose_name="tag two", head=True)
 
     keywords     = seo.KeywordTag()
