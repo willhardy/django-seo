@@ -46,7 +46,7 @@ class MetadataBaseModel(models.Model):
             # Otherwise, return an appropriate default value (populate_from)
             populate_from = element.populate_from
             if callable(populate_from):
-                return populate_from(self)
+                return populate_from(self, **self._populate_from_kwargs())
             elif isinstance(populate_from, Literal):
                 return populate_from.value
             elif populate_from is not NotSet:
@@ -64,6 +64,9 @@ class MetadataBaseModel(models.Model):
                 else:
                     return value(self._metadata, self)
             return value
+
+    def _populate_from_kwargs(self):
+        return {}
 
 
 class BaseManager(models.Manager):
@@ -169,6 +172,9 @@ class PathBackend(MetadataBackend):
             def __unicode__(self):
                 return self._path
 
+            def _populate_from_kwargs(self):
+                return {'path': self._path}
+
             class Meta:
                 abstract = True
                 unique_together = self.get_unique_together(options)
@@ -200,6 +206,9 @@ class ViewBackend(MetadataBackend):
                 """ Use the context when rendering any substitutions.  """
                 if 'view_context' in context:
                     self.__context = context['view_context']
+
+            def _populate_from_kwargs(self):
+                return {'view_name': self._view}
         
             def _resolve_value(self, name):
                 value = super(ViewMetadataBase, self)._resolve_value(name)
@@ -249,6 +258,9 @@ class ModelInstanceBackend(MetadataBackend):
                 context['content_type'] = self._content_type
                 context['model_instance'] = self
 
+            def _populate_from_kwargs(self):
+                return {'model_instance': self._content_object}
+
             def save(self, *args, **kwargs):
                 try:
                     path_func = self._content_object.get_absolute_url
@@ -288,6 +300,9 @@ class ModelBackend(MetadataBackend):
                 """
                 if 'model_instance' in context:
                     self.__instance = context['model_instance']
+
+            def _populate_from_kwargs(self):
+                return {'content_type': self._content_type}
         
             def _resolve_value(self, name):
                 value = super(ModelMetadataBase, self)._resolve_value(name)
