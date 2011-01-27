@@ -357,7 +357,7 @@ class ValueResolution(TestCase):
         # Callable given as a string
         self.assertEqual(self.context1.populate_from1.value, u'wxy')
         # Callable given as callable (method)
-        self.assertEqual(self.context1.populate_from7.value, u'example.com')
+        self.assertEqual(self.context1.populate_from7.value, u'model instance content: Page one content.')
 
     def test_populate_from_field(self):
         # Data direct from another field

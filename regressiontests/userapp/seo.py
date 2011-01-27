@@ -2,16 +2,21 @@ from rollyourown import seo
 from django.db import models
 from django.contrib.sites.models import Site
 
-def get_site_name(metadata):
+def get_site_name(metadata, **kwargs):
     return "example.com"
+
+def get_model_instance_content(metadata, model_instance=None, **kwargs):
+    if model_instance:
+        return u'model instance content: %s' % model_instance.content
+    return 'no model instance'
 
 class Coverage(seo.Metadata):
     """ A SEO metadata definition, which should cover all configurable options.
     """
-    def get_populate_from1(self, metadata):
+    def get_populate_from1(self, metadata, **kwargs):
         return "wxy"
 
-    def get_populate_from2(self, metadata):
+    def get_populate_from2(self, metadata, **kwargs):
         return "xyz"
     get_populate_from2.short_description = "Always xyz"
 
@@ -37,7 +42,7 @@ class Coverage(seo.Metadata):
     populate_from4     = seo.Tag(populate_from="ghi")
     populate_from5     = seo.Tag(populate_from="ghi", editable=False)
     populate_from6     = seo.Tag(populate_from="keywords")
-    populate_from7     = seo.Tag(populate_from=get_site_name)
+    populate_from7     = seo.Tag(populate_from=get_model_instance_content)
 
     field1       = seo.Tag(field=models.TextField)
 
