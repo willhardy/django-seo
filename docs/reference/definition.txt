@@ -136,19 +136,27 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
         3) otherwise, treat the given value as a literal value. Literal values can also be explicitly marked.
 
     If a callable or the name of a method is provided, 
-    it is called (at run time) with the metadata as the only argument (or of course ``self``) .
-    Return ``None`` to leave out the tag/meta tag/raw data.
+    it is called (at run time) with the metadata as the first argument 
+    (or of course ``self``) and a variable set of keyword arguments.
+    For this reason, you should always use ``**kwargs`` 
+    and default values for the parameters you use.
+    Return ``None`` to leave out the tag/meta tag/raw data. For example:
+
+    .. code-block:: python
+
+        def default_title(metadata, model_instance=None, **kwargs):
+            if model_instance:
+                return "My Website: %s" % model_instance.name
+            else:
+                return None
 
     If you provide a callable, you can describe what the callable will return for the benefit of admin users. 
     Do this by setting the ``short_description`` attribute on the callable. For example:
 
     .. code-block:: python
 
-        def default_title(metadata):
-            if metadata:
-                return "My Website: {{ page.title }}"
-            else:
-                return "My Website"
+        def default_title(metadata, **kwargs):
+            return "My Website"
         default_title.short_description = "Standard title will be used"
 
 .. attribute:: max_length
