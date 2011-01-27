@@ -69,12 +69,27 @@ def register_seo_admin(admin_site, metadata_class):
     admin_site.register(metadata_class._meta.get_model('view'), ViewAdmin)
 
 
+class MetadataFormset(generic.BaseGenericInlineFormSet):
+    def _construct_form(self, i, **kwargs):
+        """ Override the method to change the form attribute empty_permitted """
+        form = super(MetadataFormset, self)._construct_form(i, **kwargs)
+        # Monkey patch the form to always force a save.
+        # It's unfortunate, but necessary because we always want an instance
+        # Affect on performance shouldn't be too great, because ther is only
+        # ever one metadata attached
+        form.empty_permitted = False
+        form.has_changed = lambda: True
+        return form
+
+
 def get_inline(metadata_class):
     attrs = {
         'max_num': 1, 
+        'extra': 1, 
         'model': metadata_class._meta.get_model('modelinstance'), 
         'ct_field': "_content_type",
         'ct_fk_field': "_object_id",
+        'formset': MetadataFormset,
         }
     return type('MetadataInline', (generic.GenericStackedInline,), attrs)
 
