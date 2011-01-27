@@ -150,6 +150,9 @@ Any unknown parameters will be passed onto the underlying Django field (usually 
             else:
                 return None
 
+    Currently, the keywords are `model_instance`, `view_name`, `content_type`, `path`. 
+    They won't all appear at once, and future version may include more information.
+
     If you provide a callable, you can describe what the callable will return for the benefit of admin users. 
     Do this by setting the ``short_description`` attribute on the callable. For example:
 
