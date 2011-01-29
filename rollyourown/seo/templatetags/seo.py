@@ -23,9 +23,9 @@ class MetadataNode(template.Node):
             if isinstance(target, basestring):
                 path = target
             elif hasattr(target, 'get_absolute_url'):
-                path = target.get_absolute_url
+                path = target.get_absolute_url()
             elif hasattr(target, "__iter__") and 'get_absolute_url' in target:
-                path = target['get_absolute_url']
+                path = target['get_absolute_url']()
             else:
                 path = None
         except VariableDoesNotExist:
