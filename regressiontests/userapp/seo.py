@@ -54,7 +54,7 @@ class Coverage(seo.Metadata):
             'advanced': ('raw1', 'raw2' ),
             'help_text': ( 'help_text1', 'help_text2', 'help_text3', 'help_text4', )
         }
-        seo_models = ('userapp.page', 'userapp.product', 'userapp.category', 'userapp.nopath' )
+        seo_models = ('userapp', )
         seo_views = ('userapp', )
 
     class HelpText:

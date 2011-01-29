@@ -79,6 +79,12 @@ class MetadataFormset(generic.BaseGenericInlineFormSet):
         # ever one metadata attached
         form.empty_permitted = False
         form.has_changed = lambda: True
+
+        # Set a marker on this object to prevent automatic metadata creation
+        # This is seen by the post_save handler, which then skips this instance.
+        if self.instance:
+            self.instance.__seo_metadata_handled = True
+
         return form
 
 

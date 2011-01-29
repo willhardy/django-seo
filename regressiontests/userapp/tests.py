@@ -942,6 +942,7 @@ class Admin(TestCase):
         try:
             response = self.client.post(path, data, follow=True)
         except Exception, e:
+            raise
             self.fail(u"Exception raised at '%s': %s" % (path, e))
         self.assertEqual(response.status_code, 200)
 

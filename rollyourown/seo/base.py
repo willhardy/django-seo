@@ -271,6 +271,12 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
         then this shouldn't happen.
         I've held it to be more important to avoid double path entries.
     """
+    # If this instance is marked as handled, don't do anything
+    # This typically means that the django admin will add metadata 
+    # using eg an inline.
+    if getattr(instance, '_MetadataFormset__seo_metadata_handled', False):
+        return
+
     metadata = None
     content_type = ContentType.objects.get_for_model(instance)
     
