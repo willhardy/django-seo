@@ -50,10 +50,11 @@ from django.template import Template, RequestContext, TemplateSyntaxError
 from django.core.cache import cache
 from django.utils.hashcompat import md5_constructor
 from django.utils.encoding import iri_to_uri
+from django.core.management import call_command
 
 from rollyourown.seo import get_metadata as seo_get_metadata
 from rollyourown.seo.base import registry
-from userapp.models import Page, Product, Category, NoPath
+from userapp.models import Page, Product, Category, NoPath, Tag
 from userapp.seo import Coverage, WithSites, WithI18n, WithRedirect, WithRedirectSites, WithCache, WithCacheSites, WithCacheI18n, WithBackends
 
 
@@ -845,9 +846,11 @@ class Random(TestCase):
     """
 
     def setUp(self):
+        self.Metadata = Coverage._meta.get_model('modelinstance')
+
         self.page = Page.objects.create(type="abc")
         self.content_type = ContentType.objects.get_for_model(Page)
-        self.model_metadata = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.content_type,
+        self.model_metadata = self.Metadata.objects.get(_content_type=self.content_type,
                                                     _object_id=self.page.id)
         self.context = get_metadata(path=self.model_metadata._path)
 
@@ -861,13 +864,47 @@ class Random(TestCase):
 
     def test_missing_path(self):
         " Checks that a model with a missing path is gracefully ignored. "
-        num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
+        num_metadata = self.Metadata.objects.all().count()
         try:
             no_path = NoPath.objects.create()
         except Exception, e:
             self.fail("Exception inappropriately raised: %r" % e)
-        new_num_metadata = Coverage._meta.get_model('modelinstance').objects.all().count()
+        new_num_metadata = self.Metadata.objects.all().count()
         self.assertEqual(num_metadata, new_num_metadata)
+
+    def test_syncdb_populate(self):
+        " Checks that syncdb populates the seo metadata. "
+        Metadata = Coverage._meta.get_model('modelinstance')
+        if not Metadata.objects.exists():
+            raise Exception("Test case requires instances for model instance metadata")
+
+        # Remove everything, syncdb will populate it
+        Metadata.objects.all().delete()
+
+        call_command('syncdb', verbosity=0)
+
+        if not Metadata.objects.exists():
+            self.fail("No metadata objects created.")
+
+    def test_management_populate(self):
+        " Checks that populate_metadata command adds relevant metadata instances. "
+        Metadata = Coverage._meta.get_model('modelinstance')
+        self.page = Page.objects.create(type="def")
+
+        # Check the number of existing metadata instances
+        existing_metadata = Metadata.objects.count()
+        if existing_metadata < 2:
+            raise Exception("Test case requires at least 2 instances for model instance metadata")
+
+        # Remove one metadata, populate_metadata will add it again
+        Metadata.objects.all()[0].delete()
+
+        call_command('populate_metadata')
+
+        # Check that we at least have as many as previously
+        full_metadata = Metadata.objects.count()
+        if full_metadata < existing_metadata:
+            self.fail("No metadata objects created.")
 
 
 class Admin(TestCase):
@@ -907,4 +944,25 @@ class Admin(TestCase):
         except Exception, e:
             self.fail(u"Exception raised at '%s': %s" % (path, e))
         self.assertEqual(response.status_code, 200)
+
+    def test_inline_nonadmin(self):
+        """ Checks that a model that can be edited inline in the Admin automatically
+            creates an instance when not using the Admin.
+        """
+        content_type = ContentType.objects.get_for_model(Tag)
+        Metadata = Coverage._meta.get_model('modelinstance')
+
+        tag = Tag(name="noinline")
+        tag.save()
+        try:
+            Metadata.objects.get(_content_type=content_type, _object_id=tag.pk)
+        except Metadata.DoesNotExist:
+            self.fail("No metadata automatically created on .save()")
+
+        # Try with create
+        tag = Tag.objects.create(name="noinline2")
+        try:
+            Metadata.objects.get(_content_type=content_type, _object_id=tag.pk)
+        except Metadata.DoesNotExist:
+            self.fail("No metadata automatically created after using .create()")
 
