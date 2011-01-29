@@ -18,12 +18,12 @@ class MetadataNode(template.Node):
     def render(self, context):
         try:
             path = self.path.resolve(context)
-            if hasattr(path, 'get_absolute_url'):
-                path = path.get_absolute_url
-            if hasattr(path, "__iter__") and 'get_absolute_url' in path:
-                path = path['get_absolute_url']
-            if callable(path):
-                path = path()
+            # if hasattr(path, 'get_absolute_url'):
+            #     path = path.get_absolute_url
+            # if hasattr(path, "__iter__") and 'get_absolute_url' in path:
+            #     path = path['get_absolute_url']
+            # if callable(path):
+            #     path = path()
         except VariableDoesNotExist:
             msg = (u"{% get_metadata %} needs some path information.\n"
                         u"Please use RequestContext with the django.core.context_processors.request context processor.\n"
