@@ -760,17 +760,19 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
 
     def test_for_obj_no_path(self):
+        InstanceMetadata = Coverage._meta.get_model('modelinstance')
         self.deregister_alternatives()
 
         # NoPath objects can exist without a matching metadata instance
         obj1 = NoPath.objects.create()
         obj2 = NoPath.objects.create()
         content_type = ContentType.objects.get_for_model(NoPath)
-        obj_metadata = Coverage._meta.get_model('modelinstance').objects.create(_content_type=content_type, _object_id=obj2.id, title="Correct Title")
+        obj_metadata = InstanceMetadata.objects.create(_content_type=content_type, _object_id=obj2.id, title="Correct Title")
 
         self.context = {'obj': obj2}
-        self.compilesTo("{% get_metadata for obj %}", unicode(obj_metadata))
-        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(obj_metadata))
+        expected_metadata = '<title>Correct Title</title>'
+        self.compilesTo("{% get_metadata for obj %}", expected_metadata)
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", expected_metadata)
 
         # Where the object does not link to a metadata object, defaults should be returned
         self.context = {'obj': obj1}

@@ -256,15 +256,28 @@ def get_metadata(path, name=None, context=None, site=None, language=None):
 
 
 def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
-    metadata = _get_metadata_model(name)
-    metadata_model = metadata._meta.get_model('modelinstance')
+    """ Gets metadata linked from the given object. """
+    # XXX Check that 'modelinstance' and 'model' metadata are installed in backends
+    # I believe that get_model() would return None if not
+    Metadata = _get_metadata_model(name)
+    InstanceMetadata = Metadata._meta.get_model('modelinstance')
+    ModelMetadata = Metadata._meta.get_model('model')
     content_type = ContentType.objects.get_for_model(obj)
-    try:
-        return metadata_model.objects.get(_content_type=content_type, _object_id=obj.pk)
-    except metadata_model.DoesNotExist:
-        model_instance = metadata_model()
-        model_instance._content_object = obj
-        return FormattedMetadata(metadata, [model_instance], '', site, language)
+    instances = []
+    if InstanceMetadata is not None:
+        try:
+            instance_md = InstanceMetadata.objects.get(_content_type=content_type, _object_id=obj.pk)
+            instances.append(instance_md)
+        except InstanceMetadata.DoesNotExist:
+            instance_md = InstanceMetadata(_content_object=obj)
+    if ModelMetadata is not None:
+        try:
+            model_md = ModelMetadata.objects.get(_content_type=content_type)
+            instances.append(model_md)
+        except ModelMetadata.DoesNotExist:
+            model_md = ModelMetadata(_content_type=content_type)
+    
+    return FormattedMetadata(Metadata, instances, '', site, language)
 
 
 def create_metadata_instance(metadata_class, instance):
