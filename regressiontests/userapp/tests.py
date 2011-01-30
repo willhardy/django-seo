@@ -721,11 +721,11 @@ class Templates(TestCase):
         path = self.path
         self.path = "/another-path/"
         # Where the path does not find a metadata object, defaults should be returned
-        self.context = {'obj': {'get_absolute_url': "/a-third-path/"}}
+        self.context = {'obj': {'get_absolute_url': lambda: "/a-third-path/"}}
         self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
 
-        self.context = {'obj': {'get_absolute_url': path}}
+        self.context = {'obj': {'get_absolute_url': lambda: path}}
         self.compilesTo("{% get_metadata for obj %}", unicode(self.metadata))
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.metadata))
 
@@ -765,7 +765,7 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata Coverage %}", unicode(self.metadata))
         self.compilesTo("{% get_metadata Coverage as var %}{{ var }}", unicode(self.metadata))
         path = self.path
-        self.context = {'obj': {'get_absolute_url': path}}
+        self.context = {'obj': {'get_absolute_url': lambda: path}}
         self.path = "/another-path/"
         self.compilesTo("{%% get_metadata Coverage for \"%s\" %%}" % path, unicode(self.metadata))
         self.compilesTo("{%% get_metadata Coverage for \"%s\" as var %%}{{ var }}"% path, unicode(self.metadata))
