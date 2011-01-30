@@ -8,22 +8,26 @@ from django.template import VariableDoesNotExist
 register = template.Library()
 
 class MetadataNode(template.Node):
-    def __init__(self, metadata_name, variable_name, path, site, language):
+    def __init__(self, metadata_name, variable_name, target, site, language):
         self.metadata_name = metadata_name
         self.variable_name = variable_name
-        self.path = template.Variable(path or 'request.META.PATH_INFO')
+        self.target = template.Variable(target or 'request.META.PATH_INFO')
         self.site = site and template.Variable(site) or None
         self.language = language and template.Variable(language) or None
 
     def render(self, context):
         try:
-            path = self.path.resolve(context)
-            if hasattr(path, 'get_absolute_url'):
-                path = path.get_absolute_url
-            if hasattr(path, "__iter__") and 'get_absolute_url' in path:
-                path = path['get_absolute_url']
-            if callable(path):
-                path = path()
+            target = self.target.resolve(context)
+            if callable(target):
+                target = target()
+            if isinstance(target, basestring):
+                path = target
+            elif hasattr(target, 'get_absolute_url'):
+                path = target.get_absolute_url()
+            elif hasattr(target, "__iter__") and 'get_absolute_url' in target:
+                path = target['get_absolute_url']()
+            else:
+                path = None
         except VariableDoesNotExist:
             msg = (u"{% get_metadata %} needs some path information.\n"
                         u"Please use RequestContext with the django.core.context_processors.request context processor.\n"
@@ -41,9 +45,9 @@ class MetadataNode(template.Node):
             kwargs['language'] = self.language.resolve(context)
 
         metadata = None
-        # If the path is a djano model object
-        if hasattr(path, 'pk'):
-            metadata = get_linked_metadata(path, self.metadata_name, context, **kwargs)
+        # If the target is a django model object
+        if hasattr(target, 'pk'):
+            metadata = get_linked_metadata(target, self.metadata_name, context, **kwargs)
         if not isinstance(path, basestring):
             path = None
         if not metadata:

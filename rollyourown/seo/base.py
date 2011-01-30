@@ -256,12 +256,15 @@ def get_metadata(path, name=None, context=None, site=None, language=None):
 
 
 def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
-    metadata_model = _get_metadata_model(name)._meta.get_model('modelinstance')
+    metadata = _get_metadata_model(name)
+    metadata_model = metadata._meta.get_model('modelinstance')
     content_type = ContentType.objects.get_for_model(obj)
     try:
         return metadata_model.objects.get(_content_type=content_type, _object_id=obj.pk)
     except metadata_model.DoesNotExist:
-        return None
+        model_instance = metadata_model()
+        model_instance._content_object = obj
+        return FormattedMetadata(metadata, [model_instance], '', site, language)
 
 
 def create_metadata_instance(metadata_class, instance):
