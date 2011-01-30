@@ -16,11 +16,8 @@ def _syncdb_handler(app, created_models, verbosity, **kwargs):
                 if InstanceMetadata.objects.filter(_content_type=content_type).exists():
                     continue
                 if verbosity > 0:
-                    print InstanceMetadata.objects.filter(_content_type=content_type),
                     print "Populating %s for %s.%s" % (Metadata._meta.verbose_name_plural, model._meta.app_label, model._meta.object_name)
                 populate_metadata(model, InstanceMetadata)
-                if verbosity > 0:
-                    print InstanceMetadata.objects.filter(_content_type=content_type)
 
 
 def populate_all_metadata():
