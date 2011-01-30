@@ -729,6 +729,24 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata for obj %}", unicode(self.metadata))
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.metadata))
 
+    def test_for_obj_no_metadata(self):
+        """ Checks that defaults are used when no metadata object (previously) exists. """
+        # Remove all metadata
+        Metadata = Coverage._meta.get_model('path')
+        Metadata.objects.all().delete()
+
+        self.deregister_alternatives()
+        path = self.path
+        self.path = "/another-path/"
+        # Where the path does not find a metadata object, defaults should be returned
+        self.context = {'obj': {'get_absolute_url': lambda: "/a-third-path/"}}
+        self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
+
+        self.context = {'obj': {'get_absolute_url': lambda: path}}
+        self.compilesTo("{% get_metadata for obj %}", unicode(self.metadata))
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.metadata))
+
     def test_for_obj_no_path(self):
         self.deregister_alternatives()
 
