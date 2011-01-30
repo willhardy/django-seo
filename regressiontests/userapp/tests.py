@@ -730,22 +730,35 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.metadata))
 
     def test_for_obj_no_metadata(self):
-        """ Checks that defaults are used when no metadata object (previously) exists. """
-        # Remove all metadata
-        Metadata = Coverage._meta.get_model('path')
-        Metadata.objects.all().delete()
-
+        """ Checks that defaults are used when no metadata object (previously) exists. 
+            The relevant path is also removed so that the object's link to the database is used.
+        """
         self.deregister_alternatives()
-        path = self.path
-        self.path = "/another-path/"
-        # Where the path does not find a metadata object, defaults should be returned
-        self.context = {'obj': {'get_absolute_url': lambda: "/a-third-path/"}}
+
+        # Remove all metadata
+        Metadata = Coverage._meta.get_model('modelinstance')
+
+        # Create a page with metadata
+        page = Page.objects.create(title=u"Page Title", type="abc")
+        content_type = ContentType.objects.get_for_model(Page)
+        Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).update(title="Page Title")
+        
+        # Find the expected metadata 
+        expected_metadata = get_metadata(page.get_absolute_url())
+        self.assertEqual(unicode(expected_metadata).strip(), '<title>Page Title</title>')
+
+        # we don't want to use Page's URL
+        del Page.get_absolute_url
+
+        # Check the output of the template is correct when the metadata exists
+        self.context = {'obj': page}
+        self.compilesTo("{% get_metadata for obj %}", unicode(expected_metadata))
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(expected_metadata))
+
+        # Check the output is correct when there is no metadata
+        Metadata.objects.all().delete()
         self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
-
-        self.context = {'obj': {'get_absolute_url': lambda: path}}
-        self.compilesTo("{% get_metadata for obj %}", unicode(self.metadata))
-        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(self.metadata))
 
     def test_for_obj_no_path(self):
         self.deregister_alternatives()
