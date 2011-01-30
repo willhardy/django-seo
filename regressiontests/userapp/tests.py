@@ -318,17 +318,21 @@ class ValueResolution(TestCase):
     """ Value resolution (unit tests).
     """
     def setUp(self):
+        InstanceMetadata = Coverage._meta.get_model('modelinstance')
+        ModelMetadata = Coverage._meta.get_model('model')
+        ViewMetadata = Coverage._meta.get_model('view')
+
         self.page1 = Page.objects.create(title=u"MD Page One Title", type=u"page-one-type", content=u"Page one content.")
         self.page2 = Page.objects.create(type=u"page-two-type", content=u"Page two content.")
 
         self.page_content_type = ContentType.objects.get_for_model(Page)
 
-        self.metadata1 = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page1.id)
+        self.metadata1 = InstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page1.id)
         self.metadata1.keywords = "MD Keywords"
         self.metadata1.save()
-        self.metadata2 = Coverage._meta.get_model('modelinstance').objects.get(_content_type=self.page_content_type, _object_id=self.page2.id)
+        self.metadata2 = InstanceMetadata.objects.get(_content_type=self.page_content_type, _object_id=self.page2.id)
 
-        self.model_metadata = Coverage._meta.get_model('model')(_content_type=self.page_content_type)
+        self.model_metadata = ModelMetadata(_content_type=self.page_content_type)
         self.model_metadata.title = u"MMD { Title"
         self.model_metadata.keywords = u"MMD Keywords, {{ page.type }}, more keywords"
         self.model_metadata.description = u"MMD Description for {{ page }} and {{ page }}"
@@ -337,7 +341,7 @@ class ValueResolution(TestCase):
         self.context1 = get_metadata(path=self.page1.get_absolute_url())
         self.context2 = get_metadata(path=self.page2.get_absolute_url())
 
-        self.view_metadata = Coverage._meta.get_model('view').objects.create(_view="userapp_my_view")
+        self.view_metadata = ViewMetadata.objects.create(_view="userapp_my_view")
         self.view_metadata.title = "MD {{ text }} Title"
         self.view_metadata.keywords = "MD {{ text }} Keywords"
         self.view_metadata.description = "MD {{ text }} Description"
@@ -738,25 +742,20 @@ class Templates(TestCase):
         # Remove all metadata
         Metadata = Coverage._meta.get_model('modelinstance')
 
-        # Create a page with metadata
-        page = Page.objects.create(title=u"Page Title", type="abc")
+        # Create a page with metadata (with a path that get_metadata won't find)
+        page = Page.objects.create(title=u"Page Title", type="nometadata")
         content_type = ContentType.objects.get_for_model(Page)
-        Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).update(title="Page Title")
+        Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).update(title="Page Title", _path="/different/")
         
-        # Find the expected metadata 
-        expected_metadata = get_metadata(page.get_absolute_url())
-        self.assertEqual(unicode(expected_metadata).strip(), '<title>Page Title</title>')
-
-        # we don't want to use Page's URL
-        del Page.get_absolute_url
+        expected_output = '<title>Page Title</title>'
 
         # Check the output of the template is correct when the metadata exists
         self.context = {'obj': page}
-        self.compilesTo("{% get_metadata for obj %}", unicode(expected_metadata))
-        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", unicode(expected_metadata))
+        self.compilesTo("{% get_metadata for obj %}", expected_output)
+        self.compilesTo("{% get_metadata for obj as var %}{{ var }}", expected_output)
 
         # Check the output is correct when there is no metadata
-        Metadata.objects.all().delete()
+        Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).delete()
         self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
 
@@ -852,21 +851,17 @@ class Templates(TestCase):
         """ Deregister any alternative metadata classes for the sake of testing. 
             This emulates the situation where there is only one metadata definition.
         """
+        self._previous_registry = registry.items()
         for key in registry.keys():
             del registry[key]
         registry['Coverage'] = Coverage
 
     def tearDown(self):
         # Reregister any missing classes
-        if len(registry) < 5:
-            registry['WithSites'] = WithSites
-            registry['WithCache'] = WithCache
-            registry['WithCacheSites'] = WithCacheSites
-            registry['WithCacheI18n'] = WithCacheI18n
-            registry['WithI18n'] = WithI18n
-            registry['WithRedirect'] = WithRedirect
-            registry['WithRedirectSites'] = WithRedirectSites
-            registry['WithBackends'] = WithBackends
+        if hasattr(self, '_previous_registry'):
+            for key, val in self._previous_registry:
+                if key not in registry:
+                    registry[key] = val
 
 
 class Random(TestCase):
