@@ -267,16 +267,15 @@ def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
     if InstanceMetadata is not None:
         try:
             instance_md = InstanceMetadata.objects.get(_content_type=content_type, _object_id=obj.pk)
-            instances.append(instance_md)
         except InstanceMetadata.DoesNotExist:
             instance_md = InstanceMetadata(_content_object=obj)
+        instances.append(instance_md)
     if ModelMetadata is not None:
         try:
             model_md = ModelMetadata.objects.get(_content_type=content_type)
-            instances.append(model_md)
         except ModelMetadata.DoesNotExist:
             model_md = ModelMetadata(_content_type=content_type)
-    
+        instances.append(model_md)    
     return FormattedMetadata(Metadata, instances, '', site, language)
 
 
