@@ -249,9 +249,11 @@ def _get_metadata_model(name=None):
         assert len(registry) == 1, "You must have exactly one Metadata class, if using get_metadata() without a 'name' parameter."
         return registry.values()[0]
 
+
 def get_metadata(path, name=None, context=None, site=None, language=None):
     metadata = _get_metadata_model(name)
     return metadata._get_formatted_data(path, context, site, language)
+
 
 def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
     metadata_model = _get_metadata_model(name)._meta.get_model('modelinstance')
@@ -261,16 +263,8 @@ def get_linked_metadata(obj, name=None, context=None, site=None, language=None):
     except metadata_model.DoesNotExist:
         return None
 
-def _update_callback(model_class, sender, instance, created, **kwargs):
-    """ Callback to be attached to a post_save signal, updating the relevant
-        metadata, or just creating an entry. 
-    
-        NB:
-        It is theoretically possible that this code will lead to two instances
-        with the same generic foreign key.  If you have non-overlapping URLs,
-        then this shouldn't happen.
-        I've held it to be more important to avoid double path entries.
-    """
+
+def create_metadata_instance(metadata_class, instance):
     # If this instance is marked as handled, don't do anything
     # This typically means that the django admin will add metadata 
     # using eg an inline.
@@ -289,7 +283,7 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
     # Look for an existing object with this path
     language = getattr(instance, '_language', None)
     site = getattr(instance, '_site', None)
-    for md in model_class.objects.get_instances(path, site, language):
+    for md in metadata_class.objects.get_instances(path, site, language):
         # If another object has the same path, remove the path.
         # It's harsh, but we need a unique path and will assume the other
         # link is outdated.
@@ -305,12 +299,31 @@ def _update_callback(model_class, sender, instance, created, **kwargs):
     # If the path-based search didn't work, look for (or create) an existing
     # instance linked to this object.
     if not metadata:
-        metadata, md_created = model_class.objects.get_or_create(_content_type=content_type, _object_id=instance.pk)
+        metadata, md_created = metadata_class.objects.get_or_create(_content_type=content_type, _object_id=instance.pk)
         metadata._path = path
         metadata.save()
+
+
+def populate_metadata(model, MetadataClass):
+    """ For a given model and metadata class, ensure there is metadata for every instance. 
+    """
+    content_type = ContentType.objects.get_for_model(model)
+    for instance in model.objects.all():
+        create_metadata_instance(MetadataClass, instance)
+
+
+def _update_callback(model_class, sender, instance, created, **kwargs):
+    """ Callback to be attached to a post_save signal, updating the relevant
+        metadata, or just creating an entry. 
     
-    # XXX Update the Metadata instance with data from the object
-    
+        NB:
+        It is theoretically possible that this code will lead to two instances
+        with the same generic foreign key.  If you have non-overlapping URLs,
+        then this shouldn't happen.
+        I've held it to be more important to avoid double path entries.
+    """
+    create_metadata_instance(model_class, instance)
+
 
 def _delete_callback(model_class, sender, instance,  **kwargs):
     content_type = ContentType.objects.get_for_model(instance)

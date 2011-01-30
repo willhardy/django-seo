@@ -878,13 +878,26 @@ class Random(TestCase):
         if not Metadata.objects.exists():
             raise Exception("Test case requires instances for model instance metadata")
 
-        # Remove everything, syncdb will populate it
-        Metadata.objects.all().delete()
+        self.remove_seo_tables()
 
         call_command('syncdb', verbosity=0)
 
         if not Metadata.objects.exists():
             self.fail("No metadata objects created.")
+
+    def remove_seo_tables(self):
+        from django.core.management.sql import sql_delete
+        from django.db import connection
+        from django.core.management.color import no_style
+        from rollyourown.seo import models as seo_models
+
+        sql_list = sql_delete(seo_models, no_style(), connection) 
+        cursor = connection.cursor()
+        try:
+            for sql in sql_list:
+                cursor.execute(sql)
+        except Exception, e:
+            transaction.rollback_unless_managed()
 
     def test_management_populate(self):
         " Checks that populate_metadata command adds relevant metadata instances. "
