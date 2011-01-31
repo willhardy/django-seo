@@ -761,7 +761,7 @@ class Templates(TestCase):
         self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var.populate_from7 }}", 
-                '<populate_from7>model instance content: </populate_from7>')
+                '<populate_from7>model instance content: no meta data</populate_from7>')
 
     def test_for_obj_no_path(self):
         InstanceMetadata = Coverage._meta.get_model('modelinstance')
