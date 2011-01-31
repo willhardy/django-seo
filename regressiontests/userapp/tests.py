@@ -743,7 +743,7 @@ class Templates(TestCase):
         Metadata = Coverage._meta.get_model('modelinstance')
 
         # Create a page with metadata (with a path that get_metadata won't find)
-        page = Page.objects.create(title=u"Page Title", type="nometadata")
+        page = Page.objects.create(title=u"Page Title", type="nometadata", content="no meta data")
         content_type = ContentType.objects.get_for_model(Page)
         Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).update(title="Page Title", _path="/different/")
         
@@ -753,11 +753,15 @@ class Templates(TestCase):
         self.context = {'obj': page}
         self.compilesTo("{% get_metadata for obj %}", expected_output)
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", expected_output)
+        self.compilesTo("{% get_metadata for obj as var %}{{ var.populate_from7 }}", 
+                '<populate_from7>model instance content: no meta data</populate_from7>')
 
         # Check the output is correct when there is no metadata
         Metadata.objects.filter(_content_type=content_type, _object_id=page.pk).delete()
         self.compilesTo("{% get_metadata for obj %}", "<title>example.com</title>")
         self.compilesTo("{% get_metadata for obj as var %}{{ var }}", "<title>example.com</title>")
+        self.compilesTo("{% get_metadata for obj as var %}{{ var.populate_from7 }}", 
+                '<populate_from7>model instance content: </populate_from7>')
 
     def test_for_obj_no_path(self):
         InstanceMetadata = Coverage._meta.get_model('modelinstance')
