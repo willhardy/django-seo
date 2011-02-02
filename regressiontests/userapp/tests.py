@@ -1013,10 +1013,12 @@ class Admin(TestCase):
             self.fail("No metadata automatically created after using .create()")
 
     def test_autoinline(self):
-        for model in ('tag', 'page'):
+        for model in ('tag', 'page', 'product'):
             path = '/alt-admin/userapp/%s/add/' % model
             try:
                 response = self.client.get(path)
             except Exception, e:
                 self.fail(u"Exception raised at '%s': %s" % (path, e))
             self.assertContains(response, "seo-coveragemodelinstance-_content_type", status_code=200)
+            self.assertNotContains(response, "seo-withsitesmodelinstance-_content_type")
+            self.assertContains(response, "seo-withseomodelsmodelinstance-_content_type", status_code=200)

@@ -126,3 +126,41 @@ def get_view_form(metadata_class):
             model = metadata_class._meta.get_model('model')
 
     return ModelMetadataForm
+
+def _monkey_inline(model, admin_class_instance, metadata_class, inline_class, admin_site):
+    """ Monkey patch the inline onto the given admin_class instance. """
+    if model in metadata_class._meta.seo_models:
+        # *Not* adding to the class attribute "inlines", as this will affect
+        # all instances from this class. Explicitly adding to instance attribute.
+        admin_class_instance.__dict__['inlines'] = admin_class_instance.inlines + [inline_class]
+
+        # Because we've missed the registration, we need to perform actions
+        # that were done then (on admin class instantiation)
+        inline_instance = inline_class(admin_class_instance.model, admin_site)
+        admin_class_instance.inline_instances.append(inline_instance)
+
+def _with_inline(func, admin_site, metadata_class, inline_class):
+    """ Decorator for register function that adds an appropriate inline."""   
+
+    def register(model_or_iterable, admin_class=None, **options):
+        # Call the (bound) function we were given.
+        # We have to assume it will be bound to admin_site
+        func(model_or_iterable, admin_class, **options)
+        _monkey_inline(model_or_iterable, admin_site._registry[model_or_iterable], metadata_class, inline_class, admin_site)
+
+    return register
+
+def auto_register_inlines(metadata_class, admin_site):
+    """ This is a questionable function that automatically adds our metadata
+        inline to all relevant models in the site. 
+    """
+    inline_class = get_inline(metadata_class)
+
+    for model, admin_class_instance in admin_site._registry.items():
+        _monkey_inline(model, admin_class_instance, metadata_class, inline_class, admin_site)
+
+    # Monkey patch the register method to automatically add an inline for this site.
+    # _with_inline() is a decorator that wraps the register function with the same injection code
+    # used above (_monkey_inline).
+    admin_site.register = _with_inline(admin_site.register, admin_site, metadata_class, inline_class)
+

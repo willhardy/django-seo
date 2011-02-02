@@ -114,3 +114,9 @@ class WithBackends(seo.Metadata):
 
     class Meta:
         backends = ('view', 'path')
+
+class WithSEOModels(seo.Metadata):
+    title = seo.Tag()
+
+    class Meta:
+        seo_models = ('userapp', )
