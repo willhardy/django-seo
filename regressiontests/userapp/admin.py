@@ -17,3 +17,11 @@ admin.site.register(Product, admin.ModelAdmin)
 admin.site.register(Page, admin.ModelAdmin)
 admin.site.register(Tag, WithMetadataAdmin)
 admin.site.register(NoPath, WithMetadataAdmin)
+
+alternative_site = admin.AdminSite()
+
+#from rollyourown.seo.admin import auto_register_inlines
+
+#alternative_site.register(Tag)
+#auto_register_inlines(Coverage, alternative_site)
+#alternative_site.register(Page)
