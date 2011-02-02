@@ -1,4 +1,11 @@
 # Django settings for regressiontests project.
+import django
+
+# Let testing know what version we're using
+print "Using Django version: %s" % django.get_version()
+
+# Use the new messages?
+_MESSAGES_FRAMEWORK = (django.VERSION[:2] >= (1,2))
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -31,11 +38,11 @@ DATABASE_NAME = 'test.db'
 # timezone as the operating system.
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
-TIME_ZONE = 'America/Chicago'
+TIME_ZONE = 'Europe/Berlin'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en-au'
 
 SITE_ID = 1
 
@@ -71,13 +78,14 @@ TEMPLATE_LOADERS = (
 #     'django.template.loaders.eggs.Loader',
 )
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    #'django.contrib.messages.middleware.MessageMiddleware',
-)
+]
+if _MESSAGES_FRAMEWORK:
+    MIDDLEWARE_CLASSES.append('django.contrib.messages.middleware.MessageMiddleware')
 
 ROOT_URLCONF = 'regressiontests.urls'
 
@@ -87,15 +95,16 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
 )
 
-TEMPLATE_CONTEXT_PROCESSORS = (
+TEMPLATE_CONTEXT_PROCESSORS = [
     #"django.core.context_processors.auth",
     "django.contrib.auth.context_processors.auth",
     "django.core.context_processors.debug",
     "django.core.context_processors.i18n",
     "django.core.context_processors.media",
     'django.core.context_processors.request',
-    #"django.contrib.messages.context_processors.messages",
-    )
+    ]
+if _MESSAGES_FRAMEWORK:
+    TEMPLATE_CONTEXT_PROCESSORS.append("django.contrib.messages.context_processors.messages")
 
 INSTALLED_APPS = [
     'django.contrib.sites',
@@ -105,10 +114,11 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    #'django.contrib.messages',
     'django.contrib.admin',
     'django.contrib.flatpages',
 ]
+if _MESSAGES_FRAMEWORK:
+    INSTALLED_APPS.append('django.contrib.messages')
 
 CACHE_BACKEND = 'dummy://'
 # Enable when testing cache
