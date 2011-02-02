@@ -22,6 +22,6 @@ alternative_site = admin.AdminSite()
 
 #from rollyourown.seo.admin import auto_register_inlines
 
-#alternative_site.register(Tag)
+alternative_site.register(Tag)
 #auto_register_inlines(Coverage, alternative_site)
-#alternative_site.register(Page)
+alternative_site.register(Page)
