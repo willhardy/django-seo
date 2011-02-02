@@ -150,7 +150,7 @@ def _with_inline(func, admin_site, metadata_class, inline_class):
 
     return register
 
-def auto_register_inlines(metadata_class, admin_site):
+def auto_register_inlines(admin_site, metadata_class):
     """ This is a questionable function that automatically adds our metadata
         inline to all relevant models in the site. 
     """

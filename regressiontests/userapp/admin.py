@@ -25,9 +25,9 @@ from rollyourown.seo.admin import auto_register_inlines
 #from userapp.models import Tag, Page, Product
 #from userapp.seo import Coverage, WithSites, WithSEOModels
 alternative_site.register(Tag)
-auto_register_inlines(Coverage, alternative_site)
+auto_register_inlines(alternative_site, Coverage)
 alternative_site.register(Page)
-auto_register_inlines(WithSites, alternative_site)
-auto_register_inlines(WithSEOModels, alternative_site)
+auto_register_inlines(alternative_site, WithSites)
+auto_register_inlines(alternative_site, WithSEOModels)
 alternative_site.register(Product)
 

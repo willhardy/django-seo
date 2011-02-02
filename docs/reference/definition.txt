@@ -366,3 +366,21 @@ An admin inline can also be created, to add metadata as an inline form on the ad
     class MyModelAdmin(admin.ModelAdmin):
         inlines = [get_inline(MyMetadata)]
 
+To add an inline for every relevant model registered on an admin site, use the ``auto_register_inlines`` function.
+This function will add inlines for every model listed in ``seo_models`` both before and after the function is called.
+
+.. code-block:: python
+
+    from rollyourown.seo.admin import auto_register_inlines
+    from django.contrib import admin
+    from myapp.seo import MyMetadata
+
+    auto_register_inlines(admin.site, MyMetadata)
+
+Note that this is purely for convenience, where the admin site is not customised in any way.
+It is only for the truly, unashamed lazy. Please, please use ``get_inlines``.
+The reason is (and I'm not proud of it) that ``auto_register_inlines`` does some
+violent monkey-patching of both the ``Admin`` classes in the site's registry AND
+the ``register`` function of the site itself. 
+It is not a pythonic feature, and I am considering removing it unless there is strong support.
+
