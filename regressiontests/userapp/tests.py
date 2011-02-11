@@ -1022,3 +1022,17 @@ class Admin(TestCase):
             self.assertContains(response, "seo-coveragemodelinstance-_content_type", status_code=200)
             self.assertNotContains(response, "seo-withsitesmodelinstance-_content_type")
             self.assertContains(response, "seo-withseomodelsmodelinstance-_content_type", status_code=200)
+
+    def test_inline_add(self):
+        path = '/admin/seo/coveragemodel/add/'
+        data = {
+            "title": "Testing",
+            "_content_type": u'3',
+        }
+
+        try:
+            response = self.client.post(path, data, follow=True)
+        except Exception, e:
+            raise
+            self.fail(u"Exception raised at '%s': %s" % (path, e))
+        self.assertEqual(response.status_code, 200)
