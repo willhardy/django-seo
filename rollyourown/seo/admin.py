@@ -111,6 +111,13 @@ def get_model_form(metadata_class):
         class Meta:
             model = metadata_class._meta.get_model('model')
 
+        def clean__content_type(self):
+            value = self.cleaned_data['_content_type']
+            try:
+                return ContentType.objects.get(pk=int(value))
+            except (ContentType.DoesNotExist, ValueError):
+                raise forms.ValidationError("Invalid ContentType")
+
     return ModelMetadataForm
 
 
