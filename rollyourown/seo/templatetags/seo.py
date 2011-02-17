@@ -53,7 +53,10 @@ class MetadataNode(template.Node):
             path = None
         if not metadata:
             # Fetch the metadata
-            metadata = get_metadata(path, self.metadata_name, context, **kwargs)
+            try:
+                metadata = get_metadata(path, self.metadata_name, context, **kwargs)
+            except Exception, e:
+                raise TemplateSyntaxError(e.msg)
 
         # If a variable name is given, store the result there
         if self.variable_name is not None:
