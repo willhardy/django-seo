@@ -32,5 +32,4 @@ Here is an example of a definition::
 
 As you can see it is very flexible, but there is much more than this simple example.
 
-The current version you are looking at is a complete rewrite to make things a whole lot more flexible. 
-
+The full documentation can be read online at http://django-seo.readthedocs.org/.
