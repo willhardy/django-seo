@@ -16,6 +16,7 @@ Reference
 =========
 
 - :ref:`Reference manual <reference-definition>`
+- :ref:`Guide for site administrators <reference-administrators>`
 
 
 More information
