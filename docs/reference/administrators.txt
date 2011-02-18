@@ -51,9 +51,16 @@ Associating Metadata with Model instances
 
 To help make things simpler, metadata can be attached to model instances, for example a particular product. 
 Any time you add a new product, a matching "model instance" metadata will be created automatically. [#f1]_
-You are then free to add metadata as you please, and any time the path changes, the metadata will follow.
+You are then free to add metadata as you please, and any time the path changes, the metadata will follow.  
+The metadata will then appear on the relevant "detail" page for the given instance.
 
-The metadata will appear on the relevant "detail" page for the given instance.
+If the site developer has enabled it, metadata can also be directly editable alongside the instance itself.
+This is convenient when content authors are also responsible for metadata.
+
+.. figure:: images/admin-modelinstance-inline.png
+    :align: center
+
+    Sample model instance page with inline metadata
 
 .. rubric:: Footnotes
 

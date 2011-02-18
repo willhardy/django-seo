@@ -4,3 +4,4 @@ docs/_build
 regressiontests/test.db
 rollyourown/seo/kogan.py
 regressiontests/settings_local.py
+.DS_Store

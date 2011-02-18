@@ -23,4 +23,7 @@ As requirements change, it may become necessary to add new metadata fields. Havi
 What's next?
 ------------
 
-You might like to read the :ref:`Quick install guide <introduction-install>` or start reading through the :ref:`tutorial <introduction-tutorial>`.
+If you would like to get a feel for how the library works, you might like to read the :ref:`site administrator's guide <reference-administrators>`.
+
+To get started, you can read the :ref:`Quick install guide <introduction-install>` or work through the :ref:`tutorial <introduction-tutorial>`.
+Django experts may save time use the :ref:`60 second tutorial <introduction-blitz-tutorial>`.
