@@ -164,9 +164,9 @@ class PathBackend(MetadataBackend):
         class PathMetadataBase(MetadataBaseModel):
             _path = models.CharField(_('path'), max_length=255, unique=not (options.use_sites or options.use_i18n))
             if options.use_sites:
-                _site = models.ForeignKey(Site, null=True, blank=True)
+                _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
             objects = self.get_manager(options)()
 
             def __unicode__(self):
@@ -195,11 +195,11 @@ class ViewBackend(MetadataBackend):
 
     def get_model(self, options):
         class ViewMetadataBase(MetadataBaseModel):
-            _view = models.CharField(max_length=255, unique=not (options.use_sites or options.use_i18n), default="", blank=True)
+            _view = models.CharField(_('view'), max_length=255, unique=not (options.use_sites or options.use_i18n), default="", blank=True)
             if options.use_sites:
-                _site = models.ForeignKey(Site, null=True, blank=True)
+                _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
             objects = self.get_manager(options)()
 
             def _process_context(self, context):
@@ -242,9 +242,9 @@ class ModelInstanceBackend(MetadataBackend):
             _object_id = models.PositiveIntegerField(editable=False)
             _content_object = generic.GenericForeignKey('_content_type', '_object_id')
             if options.use_sites:
-                _site = models.ForeignKey(Site, null=True, blank=True)
+                _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
             objects = self.get_manager(options)()
         
             def __unicode__(self):
@@ -286,9 +286,9 @@ class ModelBackend(MetadataBackend):
         class ModelMetadataBase(MetadataBaseModel):
             _content_type = models.ForeignKey(ContentType)
             if options.use_sites:
-                _site = models.ForeignKey(Site, null=True, blank=True)
+                _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
             objects = self.get_manager(options)()
 
             def __unicode__(self):

@@ -6,6 +6,8 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.utils.encoding import smart_unicode
 from django.forms.models import fields_for_model
+from django.utils.translation import ugettext_lazy as _
+from django.utils.text import capfirst
 
 from rollyourown.seo.utils import get_seo_content_types
 from rollyourown.seo.systemviews import get_seo_views
@@ -119,7 +121,7 @@ def get_model_form(metadata_class):
     _fields = important_fields + fields_for_model(model_class, exclude=important_fields).keys()
 
     class ModelMetadataForm(forms.ModelForm):
-        _content_type = forms.ChoiceField(choices=content_type_choices)
+        _content_type = forms.ChoiceField(label=capfirst(_("model")), choices=content_type_choices)
 
         class Meta:
             model = model_class
@@ -162,7 +164,7 @@ def get_view_form(metadata_class):
     _fields = important_fields + fields_for_model(model_class, exclude=important_fields).keys()
 
     class ModelMetadataForm(forms.ModelForm):
-        _view = forms.ChoiceField(choices=view_choices, required=False)
+        _view = forms.ChoiceField(label=capfirst(_("view")), choices=view_choices, required=False)
 
         class Meta:
             model = model_class
