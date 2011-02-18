@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
 from django.utils.encoding import smart_unicode
+from django.forms.models import fields_for_model
 
 from rollyourown.seo.utils import get_seo_content_types
 from rollyourown.seo.systemviews import get_seo_views
@@ -63,8 +64,14 @@ def register_seo_admin(admin_site, metadata_class):
     class ViewAdmin(view_admin):
         form = get_view_form(metadata_class)
 
-    admin_site.register(metadata_class._meta.get_model('path'), path_admin)
-    admin_site.register(metadata_class._meta.get_model('modelinstance'), model_instance_admin)
+    class PathAdmin(path_admin):
+        form = get_path_form(metadata_class)
+
+    class ModelInstanceAdmin(model_instance_admin):
+        pass
+
+    admin_site.register(metadata_class._meta.get_model('path'), PathAdmin)
+    admin_site.register(metadata_class._meta.get_model('modelinstance'), ModelInstanceAdmin)
     admin_site.register(metadata_class._meta.get_model('model'), ModelAdmin)
     admin_site.register(metadata_class._meta.get_model('view'), ViewAdmin)
 
@@ -101,15 +108,22 @@ def get_inline(metadata_class):
 
 
 def get_model_form(metadata_class):
+    model_class = metadata_class._meta.get_model('model')
+
     # Restrict content type choices to the models set in seo_models
     content_types = get_seo_content_types(metadata_class._meta.seo_models)
     content_type_choices = [(x._get_pk_val(), smart_unicode(x)) for x in ContentType.objects.filter(id__in=content_types)]
+
+    # Get a list of fields, with _content_type at the start
+    important_fields = ['_content_type'] + core_choice_fields(metadata_class)
+    _fields = important_fields + fields_for_model(model_class, exclude=important_fields).keys()
 
     class ModelMetadataForm(forms.ModelForm):
         _content_type = forms.ChoiceField(choices=content_type_choices)
 
         class Meta:
-            model = metadata_class._meta.get_model('model')
+            model = model_class
+            fields = _fields
 
         def clean__content_type(self):
             value = self.cleaned_data['_content_type']
@@ -121,18 +135,53 @@ def get_model_form(metadata_class):
     return ModelMetadataForm
 
 
+def get_path_form(metadata_class):
+    model_class = metadata_class._meta.get_model('path')
+
+    # Get a list of fields, with _view at the start
+    important_fields = ['_path'] + core_choice_fields(metadata_class)
+    _fields = important_fields + fields_for_model(model_class, exclude=important_fields).keys()
+
+    class ModelMetadataForm(forms.ModelForm):
+        class Meta:
+            model = model_class
+            fields = _fields
+
+    return ModelMetadataForm
+
+
 def get_view_form(metadata_class):
+    model_class = metadata_class._meta.get_model('view')
+
     # Restrict content type choices to the models set in seo_models
     view_choices = [(key, " ".join(key.split("_"))) for key in get_seo_views(metadata_class)]
     view_choices.insert(0, ("", "---------"))
+
+    # Get a list of fields, with _view at the start
+    important_fields = ['_view'] + core_choice_fields(metadata_class)
+    _fields = important_fields + fields_for_model(model_class, exclude=important_fields).keys()
 
     class ModelMetadataForm(forms.ModelForm):
         _view = forms.ChoiceField(choices=view_choices, required=False)
 
         class Meta:
-            model = metadata_class._meta.get_model('model')
+            model = model_class
+            fields = _fields
 
     return ModelMetadataForm
+
+
+def core_choice_fields(metadata_class):
+    """ If the 'optional' core fields (_site and _language) are required, 
+        list them here. 
+    """
+    fields = []
+    if metadata_class._meta.use_sites:
+        fields.append('_site')
+    if metadata_class._meta.use_i18n:
+        fields.append('_language')
+    return fields
+
 
 def _monkey_inline(model, admin_class_instance, metadata_class, inline_class, admin_site):
     """ Monkey patch the inline onto the given admin_class instance. """
