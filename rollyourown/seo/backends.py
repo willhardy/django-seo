@@ -166,7 +166,7 @@ class PathBackend(MetadataBackend):
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True, choices=settings.LANGUAGES)
             objects = self.get_manager(options)()
 
             def __unicode__(self):
@@ -199,7 +199,7 @@ class ViewBackend(MetadataBackend):
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True, choices=settings.LANGUAGES)
             objects = self.get_manager(options)()
 
             def _process_context(self, context):
@@ -244,7 +244,7 @@ class ModelInstanceBackend(MetadataBackend):
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True, choices=settings.LANGUAGES)
             objects = self.get_manager(options)()
         
             def __unicode__(self):
@@ -288,7 +288,7 @@ class ModelBackend(MetadataBackend):
             if options.use_sites:
                 _site = models.ForeignKey(Site, null=True, blank=True, verbose_name=_("site"))
             if options.use_i18n:
-                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True)
+                _language = models.CharField(_("language"), max_length=5, null=True, blank=True, db_index=True, choices=settings.LANGUAGES)
             objects = self.get_manager(options)()
 
             def __unicode__(self):
