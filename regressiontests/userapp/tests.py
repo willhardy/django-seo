@@ -797,6 +797,19 @@ class Templates(TestCase):
         except TemplateSyntaxError:
             pass
 
+    def test_missing_class_name_when_required(self):
+        try:
+            self.compilesTo("{% get_metadata %}", "This should have raised an exception")
+        except TemplateSyntaxError:
+            pass
+
+    def test_bad_class_name_when_only_one(self):
+        self.deregister_alternatives()
+        try:
+            self.compilesTo("{% get_metadata ThisDoesNotExist %}", "This should have raised an exception")
+        except TemplateSyntaxError:
+            pass
+
     def test_class_name(self):
         self.compilesTo("{% get_metadata Coverage %}", unicode(self.metadata))
         self.compilesTo("{% get_metadata Coverage as var %}{{ var }}", unicode(self.metadata))

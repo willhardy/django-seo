@@ -244,7 +244,11 @@ def _get_metadata_model(name=None):
         try:
             return registry[name]
         except KeyError:
-            raise Exception("Metadata definition with name \"%s\" does not exist." % name)
+            if len(registry) == 1:
+                valid_names = u'Try using the name "%s" or simply leaving it out altogether.'% registry.keys()[0]
+            else:
+                valid_names = u"Valid names are " + u", ".join(u'"%s"' % k for k in registry.keys())
+            raise Exception(u"Metadata definition with name \"%s\" does not exist.\n%s" % (name, valid_names))
     else:
         assert len(registry) == 1, "You must have exactly one Metadata class, if using get_metadata() without a 'name' parameter."
         return registry.values()[0]
