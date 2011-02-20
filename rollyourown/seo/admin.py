@@ -72,10 +72,21 @@ def register_seo_admin(admin_site, metadata_class):
     class ModelInstanceAdmin(model_instance_admin):
         pass
 
-    admin_site.register(metadata_class._meta.get_model('path'), PathAdmin)
-    admin_site.register(metadata_class._meta.get_model('modelinstance'), ModelInstanceAdmin)
-    admin_site.register(metadata_class._meta.get_model('model'), ModelAdmin)
-    admin_site.register(metadata_class._meta.get_model('view'), ViewAdmin)
+    _register_admin(admin_site, metadata_class._meta.get_model('path'), PathAdmin)
+    _register_admin(admin_site, metadata_class._meta.get_model('modelinstance'), ModelInstanceAdmin)
+    _register_admin(admin_site, metadata_class._meta.get_model('model'), ModelAdmin)
+    _register_admin(admin_site, metadata_class._meta.get_model('view'), ViewAdmin)
+
+
+def _register_admin(admin_site, model, admin_class):
+    """ Register model in the admin, ignoring any previously registered models.
+        Alternatively it could be used in the future to replace a previously 
+        registered model.
+    """
+    try:
+        admin_site.register(model, admin_class)
+    except admin.sites.AlreadyRegistered:
+        pass
 
 
 class MetadataFormset(generic.BaseGenericInlineFormSet):
