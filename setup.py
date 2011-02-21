@@ -13,6 +13,7 @@ setup(
     name = "Django SEO",
     version = '1.0beta1',
     packages = find_packages(exclude=["docs*", "regressiontests*"]),
+    namespace_packages = ['rollyourown'],
     install_requires = ['django>=1.0'],
     author = "Will Hardy",
     author_email = "djangoseo@hardysoftware.com.au",
