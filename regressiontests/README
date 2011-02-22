@@ -1,0 +1,3 @@
+To run the full test suite, call the following:
+
+./manage.py test userapp
