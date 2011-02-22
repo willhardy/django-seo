@@ -13,7 +13,7 @@ def _syncdb_handler(app, created_models, verbosity, **kwargs):
         if InstanceMetadata is not None and InstanceMetadata in created_models:
             for model in Metadata._meta.seo_models:
                 content_type = ContentType.objects.get_for_model(model)
-                if InstanceMetadata.objects.filter(_content_type=content_type).exists():
+                if InstanceMetadata.objects.filter(_content_type=content_type):
                     continue
                 if verbosity > 0:
                     print "Populating %s for %s.%s" % (Metadata._meta.verbose_name_plural, model._meta.app_label, model._meta.object_name)

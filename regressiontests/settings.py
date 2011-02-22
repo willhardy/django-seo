@@ -27,7 +27,7 @@ DATABASES = {
     }
 }
 
-# Old-school fallback
+# Old-school fallback (Django <= 1.1)
 DATABASE_ENGINE = 'django.db.backends.sqlite3'
 DATABASE_NAME = 'test.db'
 
@@ -71,12 +71,10 @@ ADMIN_MEDIA_PREFIX = '/media/'
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = '+ljg9bcz6t7^9y8ppcxxg5#(%f1p#yj9ot%+e*n5n3y9kg=brm'
 
-# List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    #'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
-)
+if django.VERSION < (1,2):
+    TEMPLATE_LOADERS = ( 'django.template.loaders.app_directories.load_template_source',)
+else:
+    TEMPLATE_LOADERS = ( 'django.template.loaders.app_directories.Loader',)
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
@@ -95,9 +93,12 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
 )
 
-TEMPLATE_CONTEXT_PROCESSORS = [
-    #"django.core.context_processors.auth",
-    "django.contrib.auth.context_processors.auth",
+if django.VERSION < (1,2):
+    TEMPLATE_CONTEXT_PROCESSORS = ["django.core.context_processors.auth"]
+else:
+    TEMPLATE_CONTEXT_PROCESSORS = ["django.contrib.auth.context_processors.auth"]
+
+TEMPLATE_CONTEXT_PROCESSORS += [
     "django.core.context_processors.debug",
     "django.core.context_processors.i18n",
     "django.core.context_processors.media",

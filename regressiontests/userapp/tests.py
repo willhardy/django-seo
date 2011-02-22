@@ -37,7 +37,11 @@
 import StringIO
 
 from django.core.urlresolvers import reverse
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
+try:
+    from django.test import TransactionTestCase
+except ImportError:
+    TransactionTestCase = TestCase
 from django.test.client import FakePayload
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
@@ -920,14 +924,14 @@ class Random(TestCase):
     def test_syncdb_populate(self):
         " Checks that syncdb populates the seo metadata. "
         Metadata = Coverage._meta.get_model('modelinstance')
-        if not Metadata.objects.exists():
+        if not Metadata.objects.all():
             raise Exception("Test case requires instances for model instance metadata")
 
         self.remove_seo_tables()
 
         call_command('syncdb', verbosity=0)
 
-        if not Metadata.objects.exists():
+        if not Metadata.objects.all():
             self.fail("No metadata objects created.")
 
     def remove_seo_tables(self):
@@ -936,7 +940,10 @@ class Random(TestCase):
         from django.core.management.color import no_style
         from rollyourown.seo import models as seo_models
 
-        sql_list = sql_delete(seo_models, no_style(), connection) 
+        try:
+            sql_list = sql_delete(seo_models, no_style(), connection) 
+        except TypeError:
+            sql_list = sql_delete(seo_models, no_style())
         cursor = connection.cursor()
         try:
             for sql in sql_list:

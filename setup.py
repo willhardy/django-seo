@@ -10,11 +10,11 @@ except ImportError:
 from setuptools import setup, find_packages
 
 setup(
-    name = "Django SEO",
-    version = '1.0beta1',
+    name = "DjangoSEO",
+    version = '1.0',
     packages = find_packages(exclude=["docs*", "regressiontests*"]),
     namespace_packages = ['rollyourown'],
-    install_requires = ['django>=1.0'],
+    install_requires = ['django>=1.1'],
     author = "Will Hardy",
     author_email = "djangoseo@hardysoftware.com.au",
     description = "A framework for managing SEO metadata in Django.",
