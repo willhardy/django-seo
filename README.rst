@@ -2,7 +2,7 @@
 Django SEO tools
 ================
 
-This is a pre-1.0 version of a set of SEO tools for Django.
+This is a set of SEO tools for Django.
 It allows you to associate metadata with:
 
 * absolute paths
