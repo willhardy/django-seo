@@ -425,6 +425,17 @@ class ValueResolution(TestCase):
         view_md.delete()
         check_values("example.com", None, None)
 
+    def test_fallback_order2(self):
+        """ Checks a conflict between populate_from and model metadata. """
+        path = self.page1.get_absolute_url()
+        modelinstance_md = self.metadata1
+        model_md = self.model_metadata
+
+        self.assertEqual(get_metadata(path=path).populate_from3.value, "efg")
+        model_md.populate_from3 = "not efg"
+        model_md.save()
+        self.assertEqual(get_metadata(path=path).populate_from3.value, "not efg")
+
     def test_model_variable_substitution(self):
         """ Simple check to see if model variable substitution is happening """
         self.assertEqual(self.context2.keywords.value, u'MMD Keywords, page-two-type, more keywords')
