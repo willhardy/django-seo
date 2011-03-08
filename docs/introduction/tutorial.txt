@@ -77,6 +77,11 @@ After loading the ``seo`` template library, simply output all the head elements 
     </body>
     </html>
 
+.. note::
+
+   Make sure you have ``"django.core.context_processors.request"`` listed in your site's ``TEMPLATE_CONTEXT_PROCESSORS`` setting. 
+   This provides ``{% get_metadata %}`` with the current path, allowing it to automatically select the relevant metadata.
+
 Seeing it in action
 -------------------
 Using the admin site, add some new metadata, attaching it to a (valid) path of your choice. 

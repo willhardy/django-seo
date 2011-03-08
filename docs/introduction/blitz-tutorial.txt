@@ -9,7 +9,8 @@ This is an inordinately brief tutorial, for Django experts who don't like to was
 Step One
 --------
 
-Add ``rollyourown.seo`` to ``INSTALLED_APPS``
+* Add ``rollyourown.seo`` to ``INSTALLED_APPS``
+* Make sure ``"django.core.context_processors.request"`` is listed in ``TEMPLATE_CONTEXT_PROCESSORS``
 
 Step Two: Definition
 --------------------
