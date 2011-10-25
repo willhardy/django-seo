@@ -14,7 +14,7 @@ setup(
     version = '1.0',
     packages = find_packages(exclude=["docs*", "regressiontests*"]),
     namespace_packages = ['rollyourown'],
-    install_requires = ['django>=1.1'],
+    requires = ['django (>=1.1)'],
     author = "Will Hardy",
     author_email = "djangoseo@willhardy.com.au",
     description = "A framework for managing SEO metadata in Django.",
