@@ -4,6 +4,7 @@
 #    * Move/rename namespace polluting attributes
 #    * Documentation
 #    * Make backends optional: Meta.backends = (path, modelinstance/model, view)
+import hashlib
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -14,7 +15,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from django.core.cache import cache
-from django.utils.hashcompat import md5_constructor
 from django.utils.encoding import iri_to_uri
 
 from rollyourown.seo.utils import NotSet, Literal
@@ -35,9 +35,9 @@ class FormattedMetadata(object):
         self.__metadata = metadata
         if metadata._meta.use_cache:
             if metadata._meta.use_sites and site:
-                hexpath = md5_constructor(iri_to_uri(site.domain+path)).hexdigest() 
+                hexpath = hashlib.md5(iri_to_uri(site.domain+path)).hexdigest() 
             else:
-                hexpath = md5_constructor(iri_to_uri(path)).hexdigest() 
+                hexpath = hashlib.md5(iri_to_uri(path)).hexdigest() 
             if metadata._meta.use_i18n:
                 self.__cache_prefix = 'rollyourown.seo.%s.%s.%s' % (self.__metadata.__class__.__name__, hexpath, language)
             else:
